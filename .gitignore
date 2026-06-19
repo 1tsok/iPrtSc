@@ -1,0 +1,32 @@
+# ── Build output ──────────────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+
+# ── Publish / installer artifacts ─────────────────────────────
+publish/
+installer/Output/
+*.exe
+*.msi
+
+# ── Visual Studio / Rider / VS Code ───────────────────────────
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+
+# ── NuGet ─────────────────────────────────────────────────────
+*.nupkg
+packages/
+project.lock.json
+
+# ── Misc ──────────────────────────────────────────────────────
+*.log
+Thumbs.db
+.DS_Store

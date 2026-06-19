@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <AssemblyName>iPrtSc</AssemblyName>
+    <RootNamespace>iPrtSc</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Version>0.2.5</Version>
+    <!-- WPF takes DPI awareness from app.manifest; silence the WinForms-only analyzer. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Embedded in the exe via ApplicationIcon; also exposed as a Resource so windows can reference it by pack URI. -->
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+</Project>
