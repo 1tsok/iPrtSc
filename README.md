@@ -1,31 +1,29 @@
 # iPrtSc
+Windows 11+. C# + WPF (.NET 8).
 
-Персональний аналог LightShot під Windows 11. C# + WPF (.NET 8).
+## Features (current iteration — v0.2.5)
+- Global hotkey (default **Home**) to trigger a screenshot.
+- Full virtual desktop capture (all monitors), DPI-aware (PerMonitorV2).
+- Modern dark overlay: spotlight dimming, accent selection border, size indicator.
+- Floating Fluent toolbar: **Copy** (Enter), **Save** (Ctrl+S), **Cancel** (Esc).
+- Tray icon with menu (screenshot / settings / exit).
+- Windows autostart.
+- Settings stored in `%AppData%\iPrtSc\settings.json`.
 
-## Можливості (поточна ітерація — v0.1)
-- Глобальний хоткей (за замовчуванням **Home**) для запуску знімка.
-- Захоплення всього віртуального десктопа (усі монітори), DPI-aware (PerMonitorV2).
-- Сучасний темний оверлей: «spotlight»-затемнення, акцентна рамка виділення, індикатор розміру.
-- Плаваючий Fluent-тулбар: **Копіювати** (Enter), **Зберегти** (Ctrl+S), **Скасувати** (Esc).
-- Tray-іконка з меню (знімок / налаштування / вихід).
-- Автозапуск з Windows.
-- Налаштування зберігаються в `%AppData%\iPrtSc\settings.json`.
+## Planned
 
-## Заплановано далі
-- Інструменти анотацій: олівець, лінія, стрілка, прямокутник, еліпс, текст, маркер, нумерація + Undo/Redo.
-- Вікно налаштувань (зміна хоткея, формату, папки, акценту, автозапуску).
-- (Опційно) завантаження в хмару — інтерфейс закладено.
-
-## Збірка та запуск
+## Build & Run
 ```powershell
 dotnet build
 dotnet run --project src/iPrtSc
+\
 ```
 
-## Налаштування хоткея
-`HotkeyKey` — назва клавіші з `System.Windows.Forms.Keys` (`Home`, `PrintScreen`, `F9`…).
-`HotkeyModifiers` — `None` або комбінація через кому: `Control,Alt,Shift,Win`.
+## Hotkey Configuration
+`HotkeyKey` — key name from `System.Windows.Forms.Keys` (`Home`, `PrintScreen`, `F9`…).  
+`HotkeyModifiers` — `None` or a combination separated by commas: `Control,Alt,Shift,Win`.
 
-> Примітка: `Home` без модифікатора перехоплюється глобально, тож у застосунках
-> ця клавіша не працюватиме за прямим призначенням, поки iPrtSc запущено.
-> Це налаштовується у `settings.json`.
+> **Note:** `Home` without a modifier is captured globally, so in other applications
+> this key will not function as intended while iPrtSc is running.
+> This is configurable in `settings.json`.
+```
