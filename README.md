@@ -51,3 +51,11 @@ in-app Settings window (tray → Settings).
 
 > A hotkey without a modifier (e.g. `Home`) is captured globally, so that key
 > won't perform its normal function in other apps while iPrtSc is running.
+
+## License
+
+iPrtSc is free and open-source software, released under the
+[MIT License](LICENSE).
+
+Icons are from [Lucide](https://lucide.dev) (ISC License). See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full third-party notices.
