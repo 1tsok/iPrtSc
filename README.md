@@ -1,31 +1,53 @@
 # iPrtSc
 
-Персональний аналог LightShot під Windows 11. C# + WPF (.NET 8).
+A fast, lightweight screenshot tool for Windows 11. Press a hotkey, select an
+area, annotate, then copy or save — all from the system tray.
 
-## Можливості (поточна ітерація — v0.1)
-- Глобальний хоткей (за замовчуванням **Home**) для запуску знімка.
-- Захоплення всього віртуального десктопа (усі монітори), DPI-aware (PerMonitorV2).
-- Сучасний темний оверлей: «spotlight»-затемнення, акцентна рамка виділення, індикатор розміру.
-- Плаваючий Fluent-тулбар: **Копіювати** (Enter), **Зберегти** (Ctrl+S), **Скасувати** (Esc).
-- Tray-іконка з меню (знімок / налаштування / вихід).
-- Автозапуск з Windows.
-- Налаштування зберігаються в `%AppData%\iPrtSc\settings.json`.
+## Screenshots
+<img width="320" height="340" alt="image" src="https://github.com/user-attachments/assets/bb0e938d-7ac1-4245-a421-694d831c6c2a" />
 
-## Заплановано далі
-- Інструменти анотацій: олівець, лінія, стрілка, прямокутник, еліпс, текст, маркер, нумерація + Undo/Redo.
-- Вікно налаштувань (зміна хоткея, формату, папки, акценту, автозапуску).
-- (Опційно) завантаження в хмару — інтерфейс закладено.
 
-## Збірка та запуск
+## Features
+
+- **Global hotkey** to start a capture (configurable; default **Home**).
+- **Full multi-monitor capture**, DPI-aware (PerMonitor V2).
+- **Annotation tools** — pen, marker, line, arrow, rectangle, text,
+  numbered counter and blur, plus move and undo/redo.
+- **Copy or save** — quick-save or a save dialog, PNG or JPEG.
+- **Screenshot history** with thumbnails in the tray and automatic cleanup.
+- **Update notifications** in the tray when a new version is available.
+- **Print Screen support** on Windows 11 — manages the Snipping Tool shortcut
+  for you so the key triggers iPrtSc.
+- **Runs in the tray**, with optional autostart at sign-in.
+
+## Install
+
+Download the latest `iPrtSc-Setup-x.y.z.exe` from the
+[Releases](https://github.com/1tsok/iPrtSc/releases) page and run it. It installs
+per-user (no admin required) and bundles the .NET runtime.
+
+## Build from source
+
 ```powershell
 dotnet build
 dotnet run --project src/iPrtSc
 ```
 
-## Налаштування хоткея
-`HotkeyKey` — назва клавіші з `System.Windows.Forms.Keys` (`Home`, `PrintScreen`, `F9`…).
-`HotkeyModifiers` — `None` або комбінація через кому: `Control,Alt,Shift,Win`.
+To produce the installer (requires Inno Setup 6):
 
-> Примітка: `Home` без модифікатора перехоплюється глобально, тож у застосунках
-> ця клавіша не працюватиме за прямим призначенням, поки iPrtSc запущено.
-> Це налаштовується у `settings.json`.
+```powershell
+.\installer\build-installer.ps1
+```
+
+## Configuration
+
+Settings live in `%AppData%\iPrtSc\settings.json` and are editable from the
+in-app Settings window (tray → Settings).
+
+- `HotkeyKey` — a key name from `System.Windows.Forms.Keys` (e.g. `Home`,
+  `PrintScreen`, `F9`).
+- `HotkeyModifiers` — `None`, or a comma-separated combination of
+  `Control,Alt,Shift,Win`.
+
+> A hotkey without a modifier (e.g. `Home`) is captured globally, so that key
+> won't perform its normal function in other apps while iPrtSc is running.
