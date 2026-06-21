@@ -12,7 +12,7 @@
     <AssemblyName>iPrtSc</AssemblyName>
     <RootNamespace>iPrtSc</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <Version>0.6.0</Version>
+    <Version>0.6.1</Version>
     <!-- WPF takes DPI awareness from app.manifest; silence the WinForms-only analyzer. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
@@ -20,6 +20,8 @@
   <ItemGroup>
     <!-- Embedded in the exe via ApplicationIcon; also exposed as a Resource so windows can reference it by pack URI. -->
     <Resource Include="Assets\app.ico" />
+    <!-- Hi-res logo for in-app surfaces (e.g. the About window). -->
+    <Resource Include="Assets\icon-256.png" />
   </ItemGroup>
 
 </Project>

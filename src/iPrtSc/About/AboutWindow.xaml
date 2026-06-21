@@ -50,15 +50,10 @@
 
             <Grid>
                 <StackPanel>
-                    <!-- Logo: same crop-mark brackets as the app icon -->
-                    <Viewbox Width="56" Height="56" HorizontalAlignment="Center" Margin="0,10,0,14">
-                        <Canvas Width="24" Height="24">
-                            <Path Stroke="{StaticResource Accent}" StrokeThickness="2.1"
-                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                  Fill="Transparent"
-                                  Data="M9 4 5 4 5 8 M15 4 19 4 19 8 M9 20 5 20 5 16 M15 20 19 20 19 16"/>
-                        </Canvas>
-                    </Viewbox>
+                    <!-- Logo: the app icon you drew -->
+                    <Image Source="pack://application:,,,/Assets/icon-256.png"
+                           Width="56" Height="56" HorizontalAlignment="Center" Margin="0,10,0,14"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
 
                     <TextBlock Text="iPrtSc" Foreground="{StaticResource Fg}" FontSize="24" FontWeight="SemiBold"
                                HorizontalAlignment="Center"/>
@@ -68,11 +63,39 @@
                                FontSize="13" HorizontalAlignment="Center" TextAlignment="Center"
                                Margin="0,14,0,0" TextWrapping="Wrap"/>
 
+                    <!-- Update banner: shown only when a newer version is available. -->
+                    <Button x:Name="UpdateBanner" Visibility="Collapsed" Cursor="Hand"
+                            Click="OnUpdateClick" HorizontalAlignment="Center"
+                            Margin="0,16,0,0" FontSize="13" Foreground="{StaticResource Fg}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="bd" Background="#1A0A84FF" BorderBrush="{StaticResource Accent}"
+                                        BorderThickness="1" CornerRadius="8" Padding="14,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="#FFFF9500" VerticalAlignment="Center"/>
+                                        <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="#2A0A84FF"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
                     <TextBlock Foreground="{StaticResource Fg2}" FontSize="13"
                                HorizontalAlignment="Center" Margin="0,12,0,0">
                         <Run Text="Contact: "/><Hyperlink NavigateUri="mailto:code.ihor.k@gmail.com"
                                   Foreground="{StaticResource Accent}" TextDecorations="None"
                                   RequestNavigate="OnNavigate">code.ihor.k@gmail.com</Hyperlink>
+                    </TextBlock>
+
+                    <TextBlock FontSize="13" HorizontalAlignment="Center" Margin="0,6,0,0">
+                        <Hyperlink NavigateUri="https://github.com/1tsok/iPrtSc"
+                                   Foreground="{StaticResource Accent}" TextDecorations="None"
+                                   RequestNavigate="OnNavigate">iPrtSc on GitHub</Hyperlink>
                     </TextBlock>
 
                     <TextBlock x:Name="CopyrightText" Foreground="#FF6E6E73" FontSize="12"

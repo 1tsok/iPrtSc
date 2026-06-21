@@ -115,12 +115,7 @@ public partial class App : Application
         if (_settings.HistoryRetentionDays > 0)
             menu.AddItem("History…", "", ShowHistoryFlyout);
         menu.AddItem("Settings…", "", OpenSettings);
-        menu.AddItem("About", "", OpenAbout);
-        if (_updateAvailable)
-        {
-            menu.AddSeparator();
-            menu.AddItem($"Update available ({_latestVersion}) — download…", "", OpenReleasesPage);
-        }
+        menu.AddItem("About", "", OpenAbout, badge: _updateAvailable);
         menu.AddSeparator();
         menu.AddItem("Exit", "", ExitApp);
         menu.Closed += (_, _) => { if (ReferenceEquals(_trayMenu, menu)) _trayMenu = null; };
@@ -208,16 +203,6 @@ public partial class App : Application
         catch (Exception ex) { Logger.Log("FinalizePrintScreen", ex); }
     }
 
-    private void OpenReleasesPage()
-    {
-        try
-        {
-            System.Diagnostics.Process.Start(
-                new System.Diagnostics.ProcessStartInfo(UpdateChecker.ReleasesUrl) { UseShellExecute = true });
-        }
-        catch (Exception ex) { Logger.Log("OpenReleasesPage", ex); }
-    }
-
     private async Task CheckForUpdatesAsync()
     {
         try
@@ -297,7 +282,7 @@ public partial class App : Application
 
     private void OpenAbout()
     {
-        try { new AboutWindow().ShowDialog(); }
+        try { new AboutWindow(_updateAvailable ? _latestVersion : null).ShowDialog(); }
         catch (Exception ex) { Logger.Log("OpenAbout", ex); }
     }
 

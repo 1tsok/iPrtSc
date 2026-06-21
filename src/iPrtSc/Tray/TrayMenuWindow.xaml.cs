@@ -15,7 +15,7 @@ public partial class TrayMenuWindow : Window
 
     public TrayMenuWindow() => InitializeComponent();
 
-    public void AddItem(string label, string shortcut, Action action)
+    public void AddItem(string label, string shortcut, Action action, bool badge = false)
     {
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -37,7 +37,26 @@ public partial class TrayMenuWindow : Window
             VerticalAlignment = VerticalAlignment.Center
         };
         Grid.SetColumn(sc, 1);
-        grid.Children.Add(lbl);
+
+        if (badge)
+        {
+            // Orange dot beside the label, mirroring the tray icon's update badge.
+            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            row.Children.Add(lbl);
+            row.Children.Add(new System.Windows.Shapes.Ellipse
+            {
+                Width = 7,
+                Height = 7,
+                Fill = new SolidColorBrush(Color.FromArgb(255, 255, 149, 0)),
+                Margin = new Thickness(7, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            grid.Children.Add(row);
+        }
+        else
+        {
+            grid.Children.Add(lbl);
+        }
         grid.Children.Add(sc);
 
         var btn = new Button { Style = (Style)FindResource("MenuItemStyle"), Content = grid };
