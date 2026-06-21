@@ -28,6 +28,12 @@ public class AppSettings
     /// <summary>Selection-frame accent color (ARGB hex).</summary>
     public string AccentColor { get; set; } = "#FF0A84FF";
 
+    /// <summary>UTC of the last GitHub release check; null => never checked.</summary>
+    public DateTime? LastUpdateCheckUtc { get; set; }
+
+    /// <summary>Latest release version string seen on GitHub, e.g. "0.3.1"; null => unknown.</summary>
+    public string? LatestVersionSeen { get; set; }
+
     public string HotkeyDisplay =>
         (!string.IsNullOrWhiteSpace(HotkeyModifiers) && !HotkeyModifiers.Equals("None", StringComparison.OrdinalIgnoreCase))
             ? HotkeyModifiers.Replace(",", " + ") + " + " + HotkeyKey
@@ -42,6 +48,8 @@ public class AppSettings
         CopyToClipboardAlways = CopyToClipboardAlways,
         AskWhereToSave = AskWhereToSave,
         AutoStart = AutoStart,
-        AccentColor = AccentColor
+        AccentColor = AccentColor,
+        LastUpdateCheckUtc = LastUpdateCheckUtc,
+        LatestVersionSeen = LatestVersionSeen
     };
 }

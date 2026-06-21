@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
@@ -14,6 +15,8 @@ public partial class App : Application
     private OverlayWindow? _overlay;
     private TrayMenuWindow? _trayMenu;
     private Mutex? _singleInstance;
+    private bool _updateAvailable;
+    private string? _latestVersion;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -48,6 +51,7 @@ public partial class App : Application
 
             SetupTray();
             SetupHotkey();
+            _ = CheckForUpdatesAsync();
             Logger.Log("Startup complete.");
         }
         catch (Exception ex)
@@ -83,7 +87,7 @@ public partial class App : Application
         {
             Icon = IconFactory.CreateAppIcon(),
             Visible = true,
-            Text = $"iPrtSc — Capture: {_settings.HotkeyDisplay}"
+            Text = TrayTooltip()
         };
 
         _tray.MouseUp += (_, e) =>
@@ -93,6 +97,12 @@ public partial class App : Application
         };
     }
 
+    /// <summary>Tray hover text: app version, plus an update note when one is pending.</summary>
+    private string TrayTooltip() =>
+        _updateAvailable
+            ? $"iPrtSc v{UpdateChecker.Current} — update {_latestVersion} available"
+            : $"iPrtSc v{UpdateChecker.Current}";
+
     private void ShowTrayMenu()
     {
         _trayMenu?.Close();
@@ -101,12 +111,60 @@ public partial class App : Application
         menu.AddItem("Capture", _settings.HotkeyDisplay, BeginCapture);
         menu.AddItem("Settings…", "", OpenSettings);
         menu.AddItem("About", "", OpenAbout);
+        if (_updateAvailable)
+        {
+            menu.AddSeparator();
+            menu.AddItem($"Update available ({_latestVersion}) — download…", "", OpenReleasesPage);
+        }
         menu.AddSeparator();
         menu.AddItem("Exit", "", ExitApp);
         menu.Closed += (_, _) => { if (ReferenceEquals(_trayMenu, menu)) _trayMenu = null; };
 
         _trayMenu = menu;
         menu.ShowAtCursor();
+    }
+
+    private void OpenReleasesPage()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(UpdateChecker.ReleasesUrl) { UseShellExecute = true });
+        }
+        catch (Exception ex) { Logger.Log("OpenReleasesPage", ex); }
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        try
+        {
+            var result = await UpdateChecker.CheckAsync(_settings);
+            SettingsStore.Save(_settings); // persist throttle timestamp + cached latest version
+
+            if (!result.UpdateAvailable) return;
+
+            // Marshal UI changes (tray icon, tooltip) back onto the UI thread.
+            await Dispatcher.InvokeAsync(() =>
+            {
+                _updateAvailable = true;
+                _latestVersion = result.LatestVersion;
+
+                var old = _tray.Icon;
+                _tray.Icon = IconFactory.CreateAppIcon(updateBadge: true);
+                old?.Dispose();
+                _tray.Text = TrayTooltip();
+
+                _tray.ShowBalloonTip(4000, "iPrtSc",
+                    $"Version {result.LatestVersion} is available. Right-click the tray icon to download.",
+                    Forms.ToolTipIcon.Info);
+
+                Logger.Log($"Update available: {result.LatestVersion} (current {UpdateChecker.Current}).");
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("CheckForUpdatesAsync", ex);
+        }
     }
 
     private void OpenSettings()
@@ -134,7 +192,7 @@ public partial class App : Application
             // Re-register whether saved or cancelled, so the hotkey is always live again.
             bool ok = _hotkey.Register(_settings);
             Logger.Log($"Settings closed. Re-register hotkey({_settings.HotkeyDisplay}) => {ok}");
-            _tray.Text = $"iPrtSc — Capture: {_settings.HotkeyDisplay}";
+            _tray.Text = TrayTooltip();
             if (!ok)
             {
                 _tray.ShowBalloonTip(3500, "iPrtSc",
