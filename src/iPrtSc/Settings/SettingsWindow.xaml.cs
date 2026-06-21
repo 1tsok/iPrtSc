@@ -24,6 +24,7 @@ public partial class SettingsWindow : Window
     };
 
     private readonly AppSettings _working;
+    private Dictionary<string, FrameworkElement> _panels = null!;
     private string _hkKey;
     private string _hkMods;
     private string? _folder;     // null => default
@@ -56,6 +57,17 @@ public partial class SettingsWindow : Window
         FmtJpg.IsChecked = jpg;
         FmtPng.IsChecked = !jpg;
 
+        _panels = new Dictionary<string, FrameworkElement>
+        {
+            ["Hotkey"] = PanelHotkey,
+            ["Saving"] = PanelSaving,
+            ["Clipboard"] = PanelClipboard,
+            ["History"] = PanelHistory,
+            ["Appearance"] = PanelAppearance,
+            ["System"] = PanelSystem
+        };
+        NavList.SelectedIndex = 0;
+
         (working.HistoryRetentionDays switch
         {
             1 => Hist1,
@@ -73,6 +85,14 @@ public partial class SettingsWindow : Window
         var hwnd = new WindowInteropHelper(this).Handle;
         int on = 1;
         NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_USE_IMMERSIVE_DARK_MODE, ref on, sizeof(int));
+    }
+
+    // ---- Sidebar navigation ----
+    private void OnCategorySelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (NavList.SelectedItem is ListBoxItem { Tag: string key })
+            foreach (var (k, panel) in _panels)
+                panel.Visibility = k == key ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // ---- Hotkey capture ----

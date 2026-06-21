@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="iPrtSc Settings"
         Icon="pack://application:,,,/Assets/app.ico"
-        Width="480" SizeToContent="Height"
+        Width="720" Height="540" MinHeight="420"
         ResizeMode="NoResize" WindowStartupLocation="CenterScreen"
-        Background="#FF1E1E20" UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Background="#FF1C1C1E" UseLayoutRounding="True" SnapsToDevicePixels="True"
         FontFamily="Segoe UI Variable, Segoe UI" TextOptions.TextFormattingMode="Ideal">
 
     <Window.Resources>
@@ -154,169 +154,251 @@
             <Setter Property="Padding" Value="20,8"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
+
+        <!-- Sidebar navigation item -->
+        <Style x:Key="NavItem" TargetType="ListBoxItem">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="b" Background="Transparent" CornerRadius="7" Padding="10,9">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#15FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#FF2E2E31"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Big heading at the top of each settings pane -->
+        <Style x:Key="PaneTitle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="2,0,0,16"/>
+        </Style>
     </Window.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="208"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
-        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="18,18,18,12">
-            <StackPanel>
-
-        <!-- Hotkey -->
-        <StackPanel Orientation="Horizontal" Margin="2,0,0,6">
-            <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
-                <Path Style="{StaticResource SectionIcon}" Data="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M7 9h.01 M11 9h.01 M15 9h.01 M7 13h.01 M9 16h6 M11 13h.01 M15 13h.01"/>
-            </Canvas></Viewbox>
-            <TextBlock Style="{StaticResource Section}" Text="CAPTURE HOTKEY" Margin="0" VerticalAlignment="Center"/>
-        </StackPanel>
-        <Border Style="{StaticResource CardBorder}">
-            <StackPanel>
-                <Button x:Name="HotkeyButton" Style="{StaticResource FieldBtn}"
-                        PreviewKeyDown="OnHotkeyKeyDown" PreviewKeyUp="OnHotkeyKeyUp"
-                        PreviewMouseLeftButtonDown="OnHotkeyClick"
-                        GotFocus="OnHotkeyFocus" LostFocus="OnHotkeyBlur"
-                        Content="Home"/>
-                <TextBlock x:Name="HotkeyHint" Style="{StaticResource Sub}" Margin="0,8,0,0"
-                           Text="Click the field, then press the desired key combination."/>
-            </StackPanel>
+        <!-- Sidebar navigation -->
+        <Border Grid.Column="0" Background="#FF242427" BorderBrush="{StaticResource Stroke}" BorderThickness="0,0,1,0">
+            <DockPanel Margin="12,16,12,12">
+                <TextBlock DockPanel.Dock="Top" Text="Settings" Foreground="{StaticResource Fg}"
+                           FontSize="15" FontWeight="SemiBold" Margin="8,0,0,14"/>
+                <ListBox x:Name="NavList" Background="Transparent" BorderThickness="0"
+                         ItemContainerStyle="{StaticResource NavItem}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         SelectionChanged="OnCategorySelected">
+                    <ListBoxItem Tag="Hotkey">
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="17" Height="17" Margin="0,0,12,0"><Canvas Width="24" Height="24">
+                                <Path Style="{StaticResource SectionIcon}" Data="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M7 9h.01 M11 9h.01 M15 9h.01 M7 13h.01 M9 16h6 M11 13h.01 M15 13h.01"/>
+                            </Canvas></Viewbox>
+                            <TextBlock Text="Hotkey" VerticalAlignment="Center" FontSize="13.5" Foreground="{StaticResource Fg}"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="Saving">
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="17" Height="17" Margin="0,0,12,0"><Canvas Width="24" Height="24">
+                                <Path Style="{StaticResource SectionIcon}" Data="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7 M7 3v4a1 1 0 0 0 1 1h7"/>
+                            </Canvas></Viewbox>
+                            <TextBlock Text="Saving" VerticalAlignment="Center" FontSize="13.5" Foreground="{StaticResource Fg}"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="Clipboard">
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="17" Height="17" Margin="0,0,12,0"><Canvas Width="24" Height="24">
+                                <Path Style="{StaticResource SectionIcon}" Data="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/>
+                            </Canvas></Viewbox>
+                            <TextBlock Text="Clipboard" VerticalAlignment="Center" FontSize="13.5" Foreground="{StaticResource Fg}"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="History">
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="17" Height="17" Margin="0,0,12,0"><Canvas Width="24" Height="24">
+                                <Path Style="{StaticResource SectionIcon}" Data="M3 3v5h5 M3.05 13a9 9 0 1 0 2.6-6.4L3 8 M12 7v5l4 2"/>
+                            </Canvas></Viewbox>
+                            <TextBlock Text="History" VerticalAlignment="Center" FontSize="13.5" Foreground="{StaticResource Fg}"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="Appearance">
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="17" Height="17" Margin="0,0,12,0"><Canvas Width="24" Height="24">
+                                <Path Style="{StaticResource SectionIcon}" Data="M12 2a10 10 0 0 0 0 20 1.6 1.6 0 0 0 1.2-2.7 1.6 1.6 0 0 1 1.2-2.7H17a5 5 0 0 0 5-5 10 10 0 0 0-10-9.6z M8 8h.01 M13 6h.01 M17 11h.01 M8 14h.01"/>
+                            </Canvas></Viewbox>
+                            <TextBlock Text="Appearance" VerticalAlignment="Center" FontSize="13.5" Foreground="{StaticResource Fg}"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="System">
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="17" Height="17" Margin="0,0,12,0"><Canvas Width="24" Height="24">
+                                <Path Style="{StaticResource SectionIcon}" Data="M3 4h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M8 20h8 M12 16v4"/>
+                            </Canvas></Viewbox>
+                            <TextBlock Text="System" VerticalAlignment="Center" FontSize="13.5" Foreground="{StaticResource Fg}"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                </ListBox>
+            </DockPanel>
         </Border>
 
-        <!-- Saving -->
-        <StackPanel Orientation="Horizontal" Margin="2,0,0,6">
-            <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
-                <Path Style="{StaticResource SectionIcon}" Data="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7 M7 3v4a1 1 0 0 0 1 1h7"/>
-            </Canvas></Viewbox>
-            <TextBlock Style="{StaticResource Section}" Text="SAVING" Margin="0" VerticalAlignment="Center"/>
-        </StackPanel>
-        <Border Style="{StaticResource CardBorder}">
-            <StackPanel>
-                <Grid Margin="0,0,0,12">
-                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock Style="{StaticResource Label}" Text="Ask where to save"/>
-                        <TextBlock Style="{StaticResource Sub}" Text="Show a dialog on each save"/>
+        <!-- Content -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="24,24,24,12">
+                <Grid>
+
+                    <!-- Hotkey -->
+                    <StackPanel x:Name="PanelHotkey">
+                        <TextBlock Style="{StaticResource PaneTitle}" Text="Capture hotkey"/>
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <Button x:Name="HotkeyButton" Style="{StaticResource FieldBtn}"
+                                        PreviewKeyDown="OnHotkeyKeyDown" PreviewKeyUp="OnHotkeyKeyUp"
+                                        PreviewMouseLeftButtonDown="OnHotkeyClick"
+                                        GotFocus="OnHotkeyFocus" LostFocus="OnHotkeyBlur"
+                                        Content="Home"/>
+                                <TextBlock x:Name="HotkeyHint" Style="{StaticResource Sub}" Margin="0,8,0,0"
+                                           Text="Click the field, then press the desired key combination."/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
-                    <CheckBox x:Name="AskWhereSwitch" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right"/>
+
+                    <!-- Saving -->
+                    <StackPanel x:Name="PanelSaving" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource PaneTitle}" Text="Saving"/>
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,12">
+                                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource Label}" Text="Ask where to save"/>
+                                        <TextBlock Style="{StaticResource Sub}" Text="Show a dialog on each save"/>
+                                    </StackPanel>
+                                    <CheckBox x:Name="AskWhereSwitch" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right"/>
+                                </Grid>
+
+                                <TextBlock Style="{StaticResource Label}" Text="Default folder" Margin="0,0,0,6"/>
+                                <Button x:Name="FolderButton" Style="{StaticResource FieldBtn}" Click="OnBrowseFolder"
+                                        Content="…" Margin="0,0,0,12"/>
+
+                                <TextBlock Style="{StaticResource Label}" Text="Default format" Margin="0,0,0,6"/>
+                                <Border Background="{StaticResource Field}" CornerRadius="8" BorderBrush="{StaticResource Stroke}"
+                                        BorderThickness="1" Padding="3" HorizontalAlignment="Left">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton x:Name="FmtPng" Style="{StaticResource Segment}" GroupName="fmt" Content="PNG"/>
+                                        <RadioButton x:Name="FmtJpg" Style="{StaticResource Segment}" GroupName="fmt" Content="JPEG"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Clipboard -->
+                    <StackPanel x:Name="PanelClipboard" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource PaneTitle}" Text="Clipboard"/>
+                        <Border Style="{StaticResource CardBorder}">
+                            <Grid>
+                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource Label}" Text="Copy to clipboard when saving"/>
+                                    <TextBlock Style="{StaticResource Sub}" Text="Keep a copy in the clipboard after saving to a file"/>
+                                </StackPanel>
+                                <CheckBox x:Name="CopyOnSaveSwitch" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- History -->
+                    <StackPanel x:Name="PanelHistory" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource PaneTitle}" Text="History"/>
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <StackPanel Margin="0,0,0,12">
+                                    <TextBlock Style="{StaticResource Label}" Text="Keep recent screenshots"/>
+                                    <TextBlock Style="{StaticResource Sub}" Text="Every capture is auto-archived; older files are deleted, and recent ones show in the tray History menu."/>
+                                </StackPanel>
+
+                                <TextBlock Style="{StaticResource Label}" Text="Auto-delete after" Margin="0,0,0,6"/>
+                                <Border Background="{StaticResource Field}" CornerRadius="8" BorderBrush="{StaticResource Stroke}"
+                                        BorderThickness="1" Padding="3" HorizontalAlignment="Left">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton x:Name="HistOff" Style="{StaticResource Segment}" GroupName="hist" Content="Off"/>
+                                        <RadioButton x:Name="Hist1" Style="{StaticResource Segment}" GroupName="hist" Content="1 day"/>
+                                        <RadioButton x:Name="Hist3" Style="{StaticResource Segment}" GroupName="hist" Content="3 days"/>
+                                        <RadioButton x:Name="Hist7" Style="{StaticResource Segment}" GroupName="hist" Content="7 days"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Button x:Name="OpenHistoryButton" Style="{StaticResource FieldBtn}" Click="OnOpenHistory"
+                                        Content="Open history folder" Margin="0,12,0,0" HorizontalContentAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Appearance -->
+                    <StackPanel x:Name="PanelAppearance" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource PaneTitle}" Text="Appearance"/>
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource Label}" Text="Accent color" Margin="0,0,0,6"/>
+                                <StackPanel x:Name="AccentRow" Orientation="Horizontal"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- System -->
+                    <StackPanel x:Name="PanelSystem" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource PaneTitle}" Text="System"/>
+                        <Border Style="{StaticResource CardBorder}">
+                            <Grid>
+                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource Label}" Text="Start with Windows"/>
+                                    <TextBlock Style="{StaticResource Sub}" Text="Launch iPrtSc automatically at sign-in"/>
+                                </StackPanel>
+                                <CheckBox x:Name="AutoStartSwitch" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
                 </Grid>
+            </ScrollViewer>
 
-                <TextBlock Style="{StaticResource Label}" Text="Default folder" Margin="0,0,0,6"/>
-                <Button x:Name="FolderButton" Style="{StaticResource FieldBtn}" Click="OnBrowseFolder"
-                        Content="…" Margin="0,0,0,12"/>
-
-                <TextBlock Style="{StaticResource Label}" Text="Default format" Margin="0,0,0,6"/>
-                <Border Background="{StaticResource Field}" CornerRadius="8" BorderBrush="{StaticResource Stroke}"
-                        BorderThickness="1" Padding="3" HorizontalAlignment="Left">
-                    <StackPanel Orientation="Horizontal">
-                        <RadioButton x:Name="FmtPng" Style="{StaticResource Segment}" GroupName="fmt" Content="PNG"/>
-                        <RadioButton x:Name="FmtJpg" Style="{StaticResource Segment}" GroupName="fmt" Content="JPEG"/>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-        </Border>
-
-        <!-- Clipboard -->
-        <StackPanel Orientation="Horizontal" Margin="2,0,0,6">
-            <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
-                <Path Style="{StaticResource SectionIcon}" Data="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/>
-            </Canvas></Viewbox>
-            <TextBlock Style="{StaticResource Section}" Text="CLIPBOARD" Margin="0" VerticalAlignment="Center"/>
-        </StackPanel>
-        <Border Style="{StaticResource CardBorder}">
-            <Grid>
-                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                    <TextBlock Style="{StaticResource Label}" Text="Copy to clipboard when saving"/>
-                    <TextBlock Style="{StaticResource Sub}" Text="Keep a copy in the clipboard after saving to a file"/>
+            <!-- Pinned action bar: always visible regardless of content height -->
+            <Border Grid.Row="1" Background="#FF1C1C1E" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="24,24,24,24">
+                    <Button Style="{StaticResource Secondary}" Width="100" Margin="0,0,10,0" Click="OnCancel">
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
+                                <Path Stroke="{StaticResource Fg}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent" Data="M18 6 6 18 M6 6 18 18"/>
+                            </Canvas></Viewbox>
+                            <TextBlock Text="Cancel" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Primary}" Width="120" Click="OnSave">
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
+                                <Path Stroke="White" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent" Data="M20 6 9 17 4 12"/>
+                            </Canvas></Viewbox>
+                            <TextBlock Text="Save" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
-                <CheckBox x:Name="CopyOnSaveSwitch" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right"/>
-            </Grid>
-        </Border>
-
-        <!-- History -->
-        <StackPanel Orientation="Horizontal" Margin="2,0,0,6">
-            <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
-                <Path Style="{StaticResource SectionIcon}" Data="M3 3v5h5 M3.05 13a9 9 0 1 0 2.6-6.4L3 8 M12 7v5l4 2"/>
-            </Canvas></Viewbox>
-            <TextBlock Style="{StaticResource Section}" Text="HISTORY" Margin="0" VerticalAlignment="Center"/>
-        </StackPanel>
-        <Border Style="{StaticResource CardBorder}">
-            <StackPanel>
-                <StackPanel Margin="0,0,0,12">
-                    <TextBlock Style="{StaticResource Label}" Text="Keep recent screenshots"/>
-                    <TextBlock Style="{StaticResource Sub}" Text="Every capture is auto-archived; older files are deleted, and recent ones show in the tray History menu."/>
-                </StackPanel>
-
-                <TextBlock Style="{StaticResource Label}" Text="Auto-delete after" Margin="0,0,0,6"/>
-                <Border Background="{StaticResource Field}" CornerRadius="8" BorderBrush="{StaticResource Stroke}"
-                        BorderThickness="1" Padding="3" HorizontalAlignment="Left">
-                    <StackPanel Orientation="Horizontal">
-                        <RadioButton x:Name="HistOff" Style="{StaticResource Segment}" GroupName="hist" Content="Off"/>
-                        <RadioButton x:Name="Hist1" Style="{StaticResource Segment}" GroupName="hist" Content="1 day"/>
-                        <RadioButton x:Name="Hist3" Style="{StaticResource Segment}" GroupName="hist" Content="3 days"/>
-                        <RadioButton x:Name="Hist7" Style="{StaticResource Segment}" GroupName="hist" Content="7 days"/>
-                    </StackPanel>
-                </Border>
-
-                <Button x:Name="OpenHistoryButton" Style="{StaticResource FieldBtn}" Click="OnOpenHistory"
-                        Content="Open history folder" Margin="0,12,0,0" HorizontalContentAlignment="Center"/>
-            </StackPanel>
-        </Border>
-
-        <!-- Appearance -->
-        <StackPanel Orientation="Horizontal" Margin="2,0,0,6">
-            <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
-                <Path Style="{StaticResource SectionIcon}" Data="M12 2a10 10 0 0 0 0 20 1.6 1.6 0 0 0 1.2-2.7 1.6 1.6 0 0 1 1.2-2.7H17a5 5 0 0 0 5-5 10 10 0 0 0-10-9.6z M8 8h.01 M13 6h.01 M17 11h.01 M8 14h.01"/>
-            </Canvas></Viewbox>
-            <TextBlock Style="{StaticResource Section}" Text="APPEARANCE" Margin="0" VerticalAlignment="Center"/>
-        </StackPanel>
-        <Border Style="{StaticResource CardBorder}">
-            <StackPanel>
-                <TextBlock Style="{StaticResource Label}" Text="Accent color" Margin="0,0,0,6"/>
-                <StackPanel x:Name="AccentRow" Orientation="Horizontal"/>
-            </StackPanel>
-        </Border>
-
-        <!-- System -->
-        <StackPanel Orientation="Horizontal" Margin="2,0,0,6">
-            <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
-                <Path Style="{StaticResource SectionIcon}" Data="M3 4h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M8 20h8 M12 16v4"/>
-            </Canvas></Viewbox>
-            <TextBlock Style="{StaticResource Section}" Text="SYSTEM" Margin="0" VerticalAlignment="Center"/>
-        </StackPanel>
-        <Border Style="{StaticResource CardBorder}">
-            <Grid>
-                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
-                    <TextBlock Style="{StaticResource Label}" Text="Start with Windows"/>
-                    <TextBlock Style="{StaticResource Sub}" Text="Launch iPrtSc automatically at sign-in"/>
-                </StackPanel>
-                <CheckBox x:Name="AutoStartSwitch" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right"/>
-            </Grid>
-        </Border>
-
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- Pinned action bar: always visible regardless of content height -->
-        <Border Grid.Row="1" Background="#FF1E1E20" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="18,12,18,16">
-                <Button Style="{StaticResource Secondary}" Width="100" Margin="0,0,10,0" Click="OnCancel">
-                    <StackPanel Orientation="Horizontal">
-                        <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
-                            <Path Stroke="{StaticResource Fg}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent" Data="M18 6 6 18 M6 6 18 18"/>
-                        </Canvas></Viewbox>
-                        <TextBlock Text="Cancel" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-                <Button Style="{StaticResource Primary}" Width="120" Click="OnSave">
-                    <StackPanel Orientation="Horizontal">
-                        <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
-                            <Path Stroke="White" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent" Data="M20 6 9 17 4 12"/>
-                        </Canvas></Viewbox>
-                        <TextBlock Text="Save" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-            </StackPanel>
-        </Border>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
