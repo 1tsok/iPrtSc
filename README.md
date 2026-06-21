@@ -1,7 +1,7 @@
 # iPrtSc
 
-[![Latest release](https://img.shields.io/github/v/release/1tsok/iPrtSc?sort=semver)](https://github.com/1tsok/iPrtSc/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/1tsok/iPrtSc/total)](https://github.com/1tsok/iPrtSc/releases)
+[![Latest release](https://img.shields.io/github/v/release/1tsok/iPrtSc?sort=semver&cacheSeconds=3600)](https://github.com/1tsok/iPrtSc/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/1tsok/iPrtSc/total?cacheSeconds=3600)](https://github.com/1tsok/iPrtSc/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)
 
