@@ -1,5 +1,10 @@
 # iPrtSc
 
+[![Latest release](https://img.shields.io/github/v/release/1tsok/iPrtSc?sort=semver)](https://github.com/1tsok/iPrtSc/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/1tsok/iPrtSc/total)](https://github.com/1tsok/iPrtSc/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)
+
 A fast, lightweight screenshot tool for Windows 11. Press a hotkey, select an
 area, annotate, then copy or save — all from the system tray.
 
