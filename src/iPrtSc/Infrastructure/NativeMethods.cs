@@ -24,6 +24,15 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
 
+    // ---- Settings-change broadcast (so the shell re-reads a changed registry value live) ----
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam,
+        string lParam, uint flags, uint timeoutMs, out IntPtr result);
+
+    public static readonly IntPtr HWND_BROADCAST = new(0xFFFF);
+    public const uint WM_SETTINGCHANGE = 0x001A;
+    public const uint SMTO_ABORTIFHUNG = 0x0002;
+
     // ---- GDI ----
     [DllImport("gdi32.dll")]
     public static extern bool DeleteObject(IntPtr hObject);

@@ -51,6 +51,7 @@ public partial class App : Application
             AutoStart.Apply(_settings.AutoStart);
 
             SetupTray();
+            SyncPrintScreenOverride();
             SetupHotkey();
             _ = CheckForUpdatesAsync();
             Task.Run(() => HistoryService.Prune(_settings.HistoryRetentionDays));
@@ -142,6 +143,71 @@ public partial class App : Application
         catch (Exception ex) { Logger.Log("ShowHistoryFlyout", ex); }
     }
 
+    // ===== Print Screen key override (Windows 11 Snipping Tool shortcut) =====
+
+    /// <summary>
+    /// On startup: if the hotkey is the bare Print Screen key and Windows still steals it for
+    /// Snipping Tool, turn that shortcut off once so our global hotkey can fire. Idempotent —
+    /// the flag means we only claim it a single time, never fighting a user who re-enables it.
+    /// </summary>
+    private void SyncPrintScreenOverride()
+    {
+        try
+        {
+            if (PrintScreenKey.IsBarePrintScreen(_settings)
+                && !_settings.RestoreSnippingToolWhenReleased
+                && PrintScreenKey.SnippingEnabled())
+            {
+                PrintScreenKey.SetSnipping(false);
+                _settings.RestoreSnippingToolWhenReleased = true;
+                SettingsStore.Save(_settings);
+                Logger.Log("Print Screen claimed at startup; Snipping Tool shortcut disabled.");
+            }
+        }
+        catch (Exception ex) { Logger.Log("SyncPrintScreenOverride", ex); }
+    }
+
+    /// <summary>
+    /// Settles the Snipping Tool shortcut after the Settings dialog closes. The dialog runs with
+    /// the shortcut temporarily disabled (so Print Screen can be pressed into the capture field);
+    /// here we decide the lasting state from the final hotkey:
+    ///  • Print Screen is the hotkey  → keep it disabled; remember to restore later iff it was on.
+    ///  • anything else               → restore it to its pre-dialog state (or to on if we owed it).
+    /// <paramref name="snippingWasOn"/> is the real state captured before the dialog opened.
+    /// </summary>
+    private void FinalizePrintScreen(bool snippingWasOn, bool wasBarePrtSc, bool nowBarePrtSc)
+    {
+        try
+        {
+            if (nowBarePrtSc)
+            {
+                // Snipping stays off (already disabled for the dialog). We owe a restore if it was on.
+                if (snippingWasOn) _settings.RestoreSnippingToolWhenReleased = true;
+                SettingsStore.Save(_settings);
+
+                if (snippingWasOn && !wasBarePrtSc)
+                    _tray.ShowBalloonTip(6000, "iPrtSc",
+                        "Print Screen now opens iPrtSc. Windows' Snipping Tool shortcut was turned off — " +
+                        "re-enable it any time under Settings ▸ Bluetooth & devices ▸ Keyboard, or just pick a different hotkey here.",
+                        Forms.ToolTipIcon.Info);
+            }
+            else
+            {
+                // Restore Snipping to its pre-dialog state, and honour any owed restore.
+                bool owed = _settings.RestoreSnippingToolWhenReleased;
+                if (snippingWasOn || owed) PrintScreenKey.SetSnipping(true);
+                _settings.RestoreSnippingToolWhenReleased = false;
+                SettingsStore.Save(_settings);
+
+                if (owed && wasBarePrtSc)
+                    _tray.ShowBalloonTip(4000, "iPrtSc",
+                        "Print Screen released — Windows' Snipping Tool shortcut was restored.",
+                        Forms.ToolTipIcon.Info);
+            }
+        }
+        catch (Exception ex) { Logger.Log("FinalizePrintScreen", ex); }
+    }
+
     private void OpenReleasesPage()
     {
         try
@@ -190,6 +256,14 @@ public partial class App : Application
         // Release the global hotkey while the dialog is open, otherwise pressing it
         // into the capture field fires a capture instead of being recorded.
         _hotkey.Unregister();
+
+        // Disable the Snipping Tool Print Screen shortcut while Settings is open, otherwise pressing
+        // Print Screen into the capture field would launch Snipping Tool over the dialog instead of
+        // being recorded. FinalizePrintScreen settles the lasting state from the chosen hotkey.
+        bool snippingWasOn = PrintScreenKey.SnippingEnabled();
+        bool wasBarePrtSc = PrintScreenKey.IsBarePrintScreen(_settings);
+        if (snippingWasOn) PrintScreenKey.SetSnipping(false);
+
         try
         {
             var working = _settings.Clone();
@@ -200,6 +274,7 @@ public partial class App : Application
                 SettingsStore.Save(_settings);
                 AutoStart.Apply(_settings.AutoStart);
             }
+            FinalizePrintScreen(snippingWasOn, wasBarePrtSc, PrintScreenKey.IsBarePrintScreen(_settings));
         }
         catch (Exception ex)
         {

@@ -32,6 +32,10 @@ public class AppSettings
     /// this many days. 0 => history disabled (no archiving, no submenu). Allowed: 0/1/3/7.</summary>
     public int HistoryRetentionDays { get; set; } = 7;
 
+    /// <summary>True when iPrtSc turned off Windows' "Print Screen opens Snipping Tool" shortcut
+    /// to claim the Print Screen hotkey, so it owes a restore when that hotkey is released.</summary>
+    public bool RestoreSnippingToolWhenReleased { get; set; } = false;
+
     /// <summary>UTC of the last GitHub release check; null => never checked.</summary>
     public DateTime? LastUpdateCheckUtc { get; set; }
 
@@ -54,6 +58,7 @@ public class AppSettings
         AutoStart = AutoStart,
         AccentColor = AccentColor,
         HistoryRetentionDays = HistoryRetentionDays,
+        RestoreSnippingToolWhenReleased = RestoreSnippingToolWhenReleased,
         LastUpdateCheckUtc = LastUpdateCheckUtc,
         LatestVersionSeen = LatestVersionSeen
     };

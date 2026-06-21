@@ -32,6 +32,11 @@ public partial class SettingsWindow : Window
     public SettingsWindow(AppSettings working)
     {
         InitializeComponent();
+
+        // Never let the auto-sized window grow past the screen, so the pinned Save/Cancel
+        // bar stays on-screen and the body scrolls instead.
+        MaxHeight = SystemParameters.WorkArea.Height - 48;
+
         _working = working;
 
         _hkKey = working.HotkeyKey;
