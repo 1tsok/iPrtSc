@@ -12,7 +12,7 @@
 #ifndef MyAppVersion
   #define MyAppVersion "0.1.0"
 #endif
-#define MyAppPublisher "Igor Kaliuzhnyi"
+#define MyAppPublisher "Ihor Kaliuzhnyi"
 #define MyAppExeName "iPrtSc.exe"
 ; Path to the self-contained publish output, relative to this .iss file.
 #define MyAppSource "..\publish\win-x64"
