@@ -1,29 +1,53 @@
 # iPrtSc
-Windows 11+. C# + WPF (.NET 8).
 
-## Features (current iteration — v0.2.5)
-- Global hotkey (default **Home**) to trigger a screenshot.
-- Full virtual desktop capture (all monitors), DPI-aware (PerMonitorV2).
-- Modern dark overlay: spotlight dimming, accent selection border, size indicator.
-- Floating Fluent toolbar: **Copy** (Enter), **Save** (Ctrl+S), **Cancel** (Esc).
-- Tray icon with menu (screenshot / settings / exit).
-- Windows autostart.
-- Settings stored in `%AppData%\iPrtSc\settings.json`.
+A fast, lightweight screenshot tool for Windows 11. Press a hotkey, select an
+area, annotate, then copy or save — all from the system tray.
 
-## Planned
+## Screenshots
+<img width="320" height="340" alt="image" src="https://github.com/user-attachments/assets/bb0e938d-7ac1-4245-a421-694d831c6c2a" />
 
-## Build & Run
+
+## Features
+
+- **Global hotkey** to start a capture (configurable; default **Home**).
+- **Full multi-monitor capture**, DPI-aware (PerMonitor V2).
+- **Annotation tools** — pen, marker, line, arrow, rectangle, text,
+  numbered counter and blur, plus move and undo/redo.
+- **Copy or save** — quick-save or a save dialog, PNG or JPEG.
+- **Screenshot history** with thumbnails in the tray and automatic cleanup.
+- **Update notifications** in the tray when a new version is available.
+- **Print Screen support** on Windows 11 — manages the Snipping Tool shortcut
+  for you so the key triggers iPrtSc.
+- **Runs in the tray**, with optional autostart at sign-in.
+
+## Install
+
+Download the latest `iPrtSc-Setup-x.y.z.exe` from the
+[Releases](https://github.com/1tsok/iPrtSc/releases) page and run it. It installs
+per-user (no admin required) and bundles the .NET runtime.
+
+## Build from source
+
 ```powershell
 dotnet build
 dotnet run --project src/iPrtSc
-\
 ```
 
-## Hotkey Configuration
-`HotkeyKey` — key name from `System.Windows.Forms.Keys` (`Home`, `PrintScreen`, `F9`…).  
-`HotkeyModifiers` — `None` or a combination separated by commas: `Control,Alt,Shift,Win`.
+To produce the installer (requires Inno Setup 6):
 
-> **Note:** `Home` without a modifier is captured globally, so in other applications
-> this key will not function as intended while iPrtSc is running.
-> This is configurable in `settings.json`.
+```powershell
+.\installer\build-installer.ps1
 ```
+
+## Configuration
+
+Settings live in `%AppData%\iPrtSc\settings.json` and are editable from the
+in-app Settings window (tray → Settings).
+
+- `HotkeyKey` — a key name from `System.Windows.Forms.Keys` (e.g. `Home`,
+  `PrintScreen`, `F9`).
+- `HotkeyModifiers` — `None`, or a comma-separated combination of
+  `Control,Alt,Shift,Win`.
+
+> A hotkey without a modifier (e.g. `Home`) is captured globally, so that key
+> won't perform its normal function in other apps while iPrtSc is running.
