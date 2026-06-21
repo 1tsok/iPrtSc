@@ -51,6 +51,14 @@ public partial class SettingsWindow : Window
         FmtJpg.IsChecked = jpg;
         FmtPng.IsChecked = !jpg;
 
+        (working.HistoryRetentionDays switch
+        {
+            1 => Hist1,
+            3 => Hist3,
+            7 => Hist7,
+            _ => HistOff
+        }).IsChecked = true;
+
         BuildAccentSwatches();
     }
 
@@ -195,6 +203,20 @@ public partial class SettingsWindow : Window
         catch { return Brushes.DodgerBlue; }
     }
 
+    // ---- History ----
+    private void OnOpenHistory(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(HistoryService.HistoryFolder);
+            // Launch Explorer with the path as an argument rather than ShellExecuting the
+            // folder directly: the latter can race the shell namespace on a just-created
+            // folder and fail with "Location is not available".
+            System.Diagnostics.Process.Start("explorer.exe", $"\"{HistoryService.HistoryFolder}\"");
+        }
+        catch (Exception ex) { Logger.Log("OnOpenHistory", ex); }
+    }
+
     // ---- Buttons ----
     private void OnSave(object sender, RoutedEventArgs e)
     {
@@ -206,6 +228,10 @@ public partial class SettingsWindow : Window
         _working.CopyToClipboardAlways = CopyOnSaveSwitch.IsChecked == true;
         _working.AutoStart = AutoStartSwitch.IsChecked == true;
         _working.AccentColor = _accent;
+        _working.HistoryRetentionDays =
+            Hist7.IsChecked == true ? 7 :
+            Hist3.IsChecked == true ? 3 :
+            Hist1.IsChecked == true ? 1 : 0;
 
         DialogResult = true;
         Close();

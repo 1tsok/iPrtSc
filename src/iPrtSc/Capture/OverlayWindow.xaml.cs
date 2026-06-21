@@ -882,7 +882,9 @@ public partial class OverlayWindow : Window
     private void DoCopy()
     {
         if (_sel.Width < 1 || _sel.Height < 1) return;
-        ClipboardService.CopyImage(ComposeSelection());
+        var image = ComposeSelection();
+        ClipboardService.CopyImage(image);
+        HistoryService.Archive(image, _settings);
         Copied?.Invoke();
         Close();
     }
@@ -897,6 +899,7 @@ public partial class OverlayWindow : Window
             var path = Path.Combine(SaveService.DefaultFolder(_settings), SaveService.DefaultFileName(_settings));
             SaveService.SaveSource(image, path);
             if (_settings.CopyToClipboardAlways) ClipboardService.CopyImage(image);
+            HistoryService.Archive(image, _settings);
             Saved?.Invoke(path);
             Close();
             return;
@@ -921,6 +924,7 @@ public partial class OverlayWindow : Window
         {
             SaveService.SaveSource(image, dlg.FileName);
             if (_settings.CopyToClipboardAlways) ClipboardService.CopyImage(image);
+            HistoryService.Archive(image, _settings);
             Saved?.Invoke(dlg.FileName);
             Close();
         }

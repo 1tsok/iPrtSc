@@ -14,6 +14,7 @@ public partial class App : Application
     private AppSettings _settings = null!;
     private OverlayWindow? _overlay;
     private TrayMenuWindow? _trayMenu;
+    private HistoryFlyout? _historyFlyout;
     private Mutex? _singleInstance;
     private bool _updateAvailable;
     private string? _latestVersion;
@@ -52,6 +53,7 @@ public partial class App : Application
             SetupTray();
             SetupHotkey();
             _ = CheckForUpdatesAsync();
+            Task.Run(() => HistoryService.Prune(_settings.HistoryRetentionDays));
             Logger.Log("Startup complete.");
         }
         catch (Exception ex)
@@ -109,6 +111,8 @@ public partial class App : Application
 
         var menu = new TrayMenuWindow();
         menu.AddItem("Capture", _settings.HotkeyDisplay, BeginCapture);
+        if (_settings.HistoryRetentionDays > 0)
+            menu.AddItem("History…", "", ShowHistoryFlyout);
         menu.AddItem("Settings…", "", OpenSettings);
         menu.AddItem("About", "", OpenAbout);
         if (_updateAvailable)
@@ -122,6 +126,20 @@ public partial class App : Application
 
         _trayMenu = menu;
         menu.ShowAtCursor();
+    }
+
+    private void ShowHistoryFlyout()
+    {
+        try
+        {
+            _historyFlyout?.Close();
+            var files = HistoryService.Recent(12);
+            var fly = new HistoryFlyout(files);
+            fly.Closed += (_, _) => { if (ReferenceEquals(_historyFlyout, fly)) _historyFlyout = null; };
+            _historyFlyout = fly;
+            fly.ShowAtCursor();
+        }
+        catch (Exception ex) { Logger.Log("ShowHistoryFlyout", ex); }
     }
 
     private void OpenReleasesPage()

@@ -28,6 +28,10 @@ public class AppSettings
     /// <summary>Selection-frame accent color (ARGB hex).</summary>
     public string AccentColor { get; set; } = "#FF0A84FF";
 
+    /// <summary>Auto-archive captures to %APPDATA%\iPrtSc\history and delete files older than
+    /// this many days. 0 => history disabled (no archiving, no submenu). Allowed: 0/1/3/7.</summary>
+    public int HistoryRetentionDays { get; set; } = 7;
+
     /// <summary>UTC of the last GitHub release check; null => never checked.</summary>
     public DateTime? LastUpdateCheckUtc { get; set; }
 
@@ -49,6 +53,7 @@ public class AppSettings
         AskWhereToSave = AskWhereToSave,
         AutoStart = AutoStart,
         AccentColor = AccentColor,
+        HistoryRetentionDays = HistoryRetentionDays,
         LastUpdateCheckUtc = LastUpdateCheckUtc,
         LatestVersionSeen = LatestVersionSeen
     };

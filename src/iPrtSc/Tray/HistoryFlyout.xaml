@@ -1,0 +1,46 @@
+<Window x:Class="iPrtSc.HistoryFlyout"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" ResizeMode="NoResize" Topmost="True"
+        SizeToContent="WidthAndHeight" WindowStartupLocation="Manual"
+        FontFamily="Segoe UI Variable, Segoe UI"
+        Deactivated="OnDeactivated" PreviewKeyDown="OnKeyDown">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="Fg" Color="#FFF1F1F1"/>
+        <SolidColorBrush x:Key="Fg2" Color="#FF85858B"/>
+
+        <!-- A single thumbnail tile -->
+        <Style x:Key="ThumbTile" TargetType="Border">
+            <Setter Property="Width" Value="112"/>
+            <Setter Property="Height" Value="74"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="Background" Value="#FF161618"/>
+            <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+        </Style>
+    </Window.Resources>
+
+    <!-- Outer margin leaves room for the drop shadow (window is transparent). -->
+    <Grid Margin="16">
+        <Border Background="#F0202124" BorderBrush="#26FFFFFF" BorderThickness="1"
+                CornerRadius="10" Padding="8">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="22" ShadowDepth="4" Opacity="0.55" Color="Black"/>
+            </Border.Effect>
+            <StackPanel>
+                <TextBlock Text="Recent screenshots" Foreground="{StaticResource Fg}"
+                           FontSize="12.5" FontWeight="SemiBold" Margin="6,4,0,8"/>
+                <WrapPanel x:Name="ThumbHost" Width="366"/>
+                <TextBlock x:Name="EmptyLabel" Text="No screenshots yet" Foreground="{StaticResource Fg2}"
+                           FontSize="13" Margin="6,8,6,12" Visibility="Collapsed"/>
+                <TextBlock Foreground="{StaticResource Fg2}" FontSize="11" Margin="6,6,6,2"
+                           Text="Left-click: open  ·  Right-click / Shift: copy"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

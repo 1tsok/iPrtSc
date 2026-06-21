@@ -226,6 +226,36 @@
             </Grid>
         </Border>
 
+        <!-- History -->
+        <StackPanel Orientation="Horizontal" Margin="2,0,0,6">
+            <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
+                <Path Style="{StaticResource SectionIcon}" Data="M3 3v5h5 M3.05 13a9 9 0 1 0 2.6-6.4L3 8 M12 7v5l4 2"/>
+            </Canvas></Viewbox>
+            <TextBlock Style="{StaticResource Section}" Text="HISTORY" Margin="0" VerticalAlignment="Center"/>
+        </StackPanel>
+        <Border Style="{StaticResource CardBorder}">
+            <StackPanel>
+                <StackPanel Margin="0,0,0,12">
+                    <TextBlock Style="{StaticResource Label}" Text="Keep recent screenshots"/>
+                    <TextBlock Style="{StaticResource Sub}" Text="Every capture is auto-archived; older files are deleted, and recent ones show in the tray History menu."/>
+                </StackPanel>
+
+                <TextBlock Style="{StaticResource Label}" Text="Auto-delete after" Margin="0,0,0,6"/>
+                <Border Background="{StaticResource Field}" CornerRadius="8" BorderBrush="{StaticResource Stroke}"
+                        BorderThickness="1" Padding="3" HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="HistOff" Style="{StaticResource Segment}" GroupName="hist" Content="Off"/>
+                        <RadioButton x:Name="Hist1" Style="{StaticResource Segment}" GroupName="hist" Content="1 day"/>
+                        <RadioButton x:Name="Hist3" Style="{StaticResource Segment}" GroupName="hist" Content="3 days"/>
+                        <RadioButton x:Name="Hist7" Style="{StaticResource Segment}" GroupName="hist" Content="7 days"/>
+                    </StackPanel>
+                </Border>
+
+                <Button x:Name="OpenHistoryButton" Style="{StaticResource FieldBtn}" Click="OnOpenHistory"
+                        Content="Open history folder" Margin="0,12,0,0" HorizontalContentAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
         <!-- Appearance -->
         <StackPanel Orientation="Horizontal" Margin="2,0,0,6">
             <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
