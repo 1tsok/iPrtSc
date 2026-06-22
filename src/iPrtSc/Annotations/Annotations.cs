@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -25,24 +26,117 @@ public interface IFreehandAnnotation
     void Add(Point p);
 }
 
-public sealed class FreehandAnnotation : Annotation, IFreehandAnnotation
+/// <summary>
+/// Freehand stroke rendered as a smooth Bézier path. Raw mouse points are first
+/// thinned (samples closer than <see cref="MinDistance"/> are dropped to kill jitter),
+/// then connected with a Catmull-Rom spline converted to cubic Béziers so the curve
+/// passes through the kept points but stays smooth. The whole geometry is rebuilt on
+/// each Add — fine for a single stroke (hundreds of points at most).
+/// </summary>
+public abstract class FreehandStrokeAnnotation : Annotation, IFreehandAnnotation
 {
-    private readonly Polyline _line;
-    public override UIElement Element => _line;
+    /// <summary>Minimum spacing (px) between kept points; smaller samples are dropped.</summary>
+    private const double MinDistance = 4.0;
 
-    public FreehandAnnotation(Brush stroke, double thickness)
+    /// <summary>Moving-average passes applied to the points before curve fitting.
+    /// Higher = smoother but lags the cursor and rounds off sharp corners.</summary>
+    private const int SmoothingPasses = 2;
+
+    private readonly Path _path = new();
+    private readonly List<Point> _pts = new();
+    public override UIElement Element => _path;
+
+    protected FreehandStrokeAnnotation(Brush stroke, double thickness, double opacity = 1.0)
     {
-        _line = new Polyline
-        {
-            Stroke = stroke,
-            StrokeThickness = thickness,
-            StrokeLineJoin = PenLineJoin.Round,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap = PenLineCap.Round
-        };
+        _path.Stroke = stroke;
+        _path.StrokeThickness = thickness;
+        _path.StrokeLineJoin = PenLineJoin.Round;
+        _path.StrokeStartLineCap = PenLineCap.Round;
+        _path.StrokeEndLineCap = PenLineCap.Round;
+        _path.Opacity = opacity;
     }
 
-    public void Add(Point p) => _line.Points.Add(p);
+    public void Add(Point p)
+    {
+        if (_pts.Count > 0)
+        {
+            var last = _pts[^1];
+            double dx = p.X - last.X, dy = p.Y - last.Y;
+            if (dx * dx + dy * dy < MinDistance * MinDistance)
+                return;
+        }
+        _pts.Add(p);
+        _path.Data = BuildGeometry(Smooth(_pts));
+    }
+
+    /// <summary>
+    /// Low-pass filter: replaces each interior point with a weighted average of its
+    /// neighbours (endpoints stay pinned so the stroke starts/ends where drawn).
+    /// Applied a few times to tame jitter before the curve is fitted.
+    /// </summary>
+    private static IReadOnlyList<Point> Smooth(IReadOnlyList<Point> src)
+    {
+        if (src.Count < 3 || SmoothingPasses <= 0)
+            return src;
+
+        var cur = new Point[src.Count];
+        for (int i = 0; i < src.Count; i++) cur[i] = src[i];
+
+        var next = new Point[src.Count];
+        for (int pass = 0; pass < SmoothingPasses; pass++)
+        {
+            next[0] = cur[0];
+            next[^1] = cur[^1];
+            for (int i = 1; i < cur.Length - 1; i++)
+            {
+                next[i] = new Point(
+                    0.25 * cur[i - 1].X + 0.5 * cur[i].X + 0.25 * cur[i + 1].X,
+                    0.25 * cur[i - 1].Y + 0.5 * cur[i].Y + 0.25 * cur[i + 1].Y);
+            }
+            (cur, next) = (next, cur);
+        }
+        return cur;
+    }
+
+    /// <summary>Catmull-Rom through the points, emitted as cubic Bézier segments.</summary>
+    private static Geometry BuildGeometry(IReadOnlyList<Point> pts)
+    {
+        var fig = new PathFigure { StartPoint = pts[0], IsClosed = false, IsFilled = false };
+
+        if (pts.Count == 1)
+        {
+            // A dot: zero-length line so the round caps render a filled circle.
+            fig.Segments.Add(new LineSegment(pts[0], true));
+        }
+        else if (pts.Count == 2)
+        {
+            fig.Segments.Add(new LineSegment(pts[1], true));
+        }
+        else
+        {
+            for (int i = 0; i < pts.Count - 1; i++)
+            {
+                var p0 = pts[Math.Max(i - 1, 0)];
+                var p1 = pts[i];
+                var p2 = pts[i + 1];
+                var p3 = pts[Math.Min(i + 2, pts.Count - 1)];
+                var c1 = new Point(p1.X + (p2.X - p0.X) / 6.0, p1.Y + (p2.Y - p0.Y) / 6.0);
+                var c2 = new Point(p2.X - (p3.X - p1.X) / 6.0, p2.Y - (p3.Y - p1.Y) / 6.0);
+                fig.Segments.Add(new BezierSegment(c1, c2, p2, true));
+            }
+        }
+
+        var g = new PathGeometry();
+        g.Figures.Add(fig);
+        g.Freeze();
+        return g;
+    }
+}
+
+public sealed class FreehandAnnotation : FreehandStrokeAnnotation
+{
+    public FreehandAnnotation(Brush stroke, double thickness)
+        : base(stroke, thickness) { }
 }
 
 /// <summary>
@@ -50,25 +144,10 @@ public sealed class FreehandAnnotation : Annotation, IFreehandAnnotation
 /// rather than covering it. Opacity lives on the element, not the brush, so a single
 /// stroke composites once and overlaps within it don't darken.
 /// </summary>
-public sealed class HighlighterAnnotation : Annotation, IFreehandAnnotation
+public sealed class HighlighterAnnotation : FreehandStrokeAnnotation
 {
-    private readonly Polyline _line;
-    public override UIElement Element => _line;
-
     public HighlighterAnnotation(Brush stroke, double thickness)
-    {
-        _line = new Polyline
-        {
-            Stroke = stroke,
-            StrokeThickness = thickness,
-            StrokeLineJoin = PenLineJoin.Round,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap = PenLineCap.Round,
-            Opacity = 0.4
-        };
-    }
-
-    public void Add(Point p) => _line.Points.Add(p);
+        : base(stroke, thickness, opacity: 0.4) { }
 }
 
 public sealed class LineAnnotation : Annotation, IDragAnnotation
