@@ -820,47 +820,89 @@ public partial class OverlayWindow : Window
         catch { return Brushes.Red; }
     }
 
-    // ===== Export (WYSIWYG via RenderTargetBitmap) =====
+    // ===== Export =====
+    /// <summary>
+    /// Builds the final image. The photo layer is copied verbatim from the source
+    /// bitmap (CroppedBitmap = a raw pixel copy) so it never passes through WPF's
+    /// rendering pipeline — that pipeline dithers on render, which on dark gradients
+    /// shows up as scattered bright speckles. Annotations are rendered on their own
+    /// transparent layer and alpha-composited over the pristine crop in code.
+    /// </summary>
     private BitmapSource ComposeSelection()
     {
         // Drop focus so a text caret isn't captured.
         Keyboard.ClearFocus();
 
-        var hidden = new (UIElement el, Visibility v)[]
-        {
-            (DimCanvas, DimCanvas.Visibility),
-            (SelCanvas, SelCanvas.Visibility),
-            (HandleCanvas, HandleCanvas.Visibility),
-            (HintPill, HintPill.Visibility),
-            (ToolPanel, ToolPanel.Visibility),
-            (ActionPanel, ActionPanel.Visibility),
-            (ColorFlyout, ColorFlyout.Visibility),
-            (BrushCursor, BrushCursor.Visibility)
-        };
-        foreach (var (el, _) in hidden) el.Visibility = Visibility.Collapsed;
-        UpdateLayout();
-
-        double dpi = 96.0 * _scale;
-        var rtb = new RenderTargetBitmap(
-            Math.Max(1, (int)Math.Round(Root.ActualWidth * _scale)),
-            Math.Max(1, (int)Math.Round(Root.ActualHeight * _scale)),
-            dpi, dpi, PixelFormats.Pbgra32);
-        rtb.Render(Root);
-
-        foreach (var (el, v) in hidden) el.Visibility = v;
-
         int x = (int)Math.Round(_sel.X * _scale);
         int y = (int)Math.Round(_sel.Y * _scale);
         int w = (int)Math.Round(_sel.Width * _scale);
         int h = (int)Math.Round(_sel.Height * _scale);
-        x = Math.Clamp(x, 0, rtb.PixelWidth - 1);
-        y = Math.Clamp(y, 0, rtb.PixelHeight - 1);
-        w = Math.Clamp(w, 1, rtb.PixelWidth - x);
-        h = Math.Clamp(h, 1, rtb.PixelHeight - y);
+        x = Math.Clamp(x, 0, _src.PixelWidth - 1);
+        y = Math.Clamp(y, 0, _src.PixelHeight - 1);
+        w = Math.Clamp(w, 1, _src.PixelWidth - x);
+        h = Math.Clamp(h, 1, _src.PixelHeight - y);
+        if (AnnotCanvas.Children.Count == 0)
+        {
+            var plain = new CroppedBitmap(_src, new Int32Rect(x, y, w, h));
+            plain.Freeze();
+            return plain;
+        }
 
-        var crop = new CroppedBitmap(rtb, new Int32Rect(x, y, w, h));
-        crop.Freeze();
-        return crop;
+        // Render only the annotation layer (transparent backdrop, already clipped to
+        // the selection), crop it to match, then composite over the photo.
+        double dpi = 96.0 * _scale;
+        var annotRtb = new RenderTargetBitmap(
+            Math.Max(1, (int)Math.Round(Root.ActualWidth * _scale)),
+            Math.Max(1, (int)Math.Round(Root.ActualHeight * _scale)),
+            dpi, dpi, PixelFormats.Pbgra32);
+        annotRtb.Render(AnnotCanvas);
+
+        // Guard against a 1px rounding gap between the source and the rendered layer.
+        w = Math.Min(w, annotRtb.PixelWidth - x);
+        h = Math.Min(h, annotRtb.PixelHeight - y);
+        var rect = new Int32Rect(x, y, w, h);
+
+        var baseCrop = new CroppedBitmap(_src, rect);
+        var annotCrop = new CroppedBitmap(annotRtb, rect);
+
+        return CompositeOver(baseCrop, annotCrop);
+    }
+
+    /// <summary>
+    /// Alpha-composites a premultiplied (Pbgra32) overlay over an opaque photo,
+    /// touching only the pixels the overlay actually covers. Output is opaque Bgra32.
+    /// </summary>
+    private static BitmapSource CompositeOver(BitmapSource photo, BitmapSource overlay)
+    {
+        int w = photo.PixelWidth, h = photo.PixelHeight;
+        int stride = w * 4;
+
+        var baseBgra = new FormatConvertedBitmap(photo, PixelFormats.Bgra32, null, 0);
+        var over = overlay.Format == PixelFormats.Pbgra32
+            ? overlay
+            : new FormatConvertedBitmap(overlay, PixelFormats.Pbgra32, null, 0);
+
+        var bp = new byte[h * stride];
+        var op = new byte[h * stride];
+        baseBgra.CopyPixels(bp, stride, 0);
+        over.CopyPixels(op, stride, 0);
+
+        for (int i = 0; i < bp.Length; i += 4)
+        {
+            int a = op[i + 3];
+            if (a == 0) continue;          // overlay transparent here → keep photo pixel
+            int inv = 255 - a;
+            // overlay channels are premultiplied, so: out = over + photo * (1 - a)
+            bp[i]     = (byte)(op[i]     + bp[i]     * inv / 255);
+            bp[i + 1] = (byte)(op[i + 1] + bp[i + 1] * inv / 255);
+            bp[i + 2] = (byte)(op[i + 2] + bp[i + 2] * inv / 255);
+            bp[i + 3] = 255;
+        }
+
+        var outBmp = BitmapSource.Create(w, h, photo.DpiX, photo.DpiY,
+            PixelFormats.Bgra32, null, bp, stride);
+        outBmp.Freeze();
+        return outBmp;
     }
 
     // ===== Actions =====
