@@ -18,7 +18,7 @@ public static class UpdateChecker
     private const string ApiUrl = "https://api.github.com/repos/1tsok/iPrtSc/releases/latest";
 
     /// <summary>Only hit the network this often; otherwise reuse the cached result.</summary>
-    private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(24);
+    private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(6);
 
     private static readonly HttpClient Http = CreateClient();
 
@@ -48,10 +48,8 @@ public static class UpdateChecker
 
             if (!fresh)
             {
-                string? fetched = await FetchLatestAsync().ConfigureAwait(false);
+                await FetchLatestAsync(settings).ConfigureAwait(false);
                 settings.LastUpdateCheckUtc = DateTime.UtcNow;
-                if (fetched is not null)
-                    settings.LatestVersionSeen = fetched;
             }
 
             return Evaluate(settings.LatestVersionSeen);
@@ -70,13 +68,29 @@ public static class UpdateChecker
         return new Result(false, latestVersion);
     }
 
-    private static async Task<string?> FetchLatestAsync()
+    /// <summary>
+    /// Fetches the latest release, updating <paramref name="settings"/>.LatestVersionSeen and
+    /// .LatestEtag on success. Sends the cached ETag as If-None-Match so an unchanged release
+    /// answers 304 (no body, not billed against the rate limit) and we keep the cached value.
+    /// </summary>
+    private static async Task FetchLatestAsync(AppSettings settings)
     {
-        using var resp = await Http.GetAsync(ApiUrl).ConfigureAwait(false);
+        using var req = new HttpRequestMessage(HttpMethod.Get, ApiUrl);
+        if (!string.IsNullOrWhiteSpace(settings.LatestEtag))
+            req.Headers.TryAddWithoutValidation("If-None-Match", settings.LatestEtag);
+
+        using var resp = await Http.SendAsync(req).ConfigureAwait(false);
+
+        if (resp.StatusCode == System.Net.HttpStatusCode.NotModified)
+        {
+            Logger.Log("UpdateChecker: 304 Not Modified — cached latest is current.");
+            return;
+        }
+
         if (!resp.IsSuccessStatusCode)
         {
             Logger.Log($"UpdateChecker: GitHub returned {(int)resp.StatusCode}.");
-            return null;
+            return;
         }
 
         await using var stream = await resp.Content.ReadAsStreamAsync().ConfigureAwait(false);
@@ -85,12 +99,13 @@ public static class UpdateChecker
         if (doc.RootElement.TryGetProperty("tag_name", out var tag) &&
             tag.GetString() is { } raw && TryParse(raw, out var v))
         {
+            settings.LatestVersionSeen = v.ToString();
+            settings.LatestEtag = resp.Headers.ETag?.ToString();
             Logger.Log($"UpdateChecker: latest tag={raw} (parsed {v}), current={Current}.");
-            return v.ToString();
+            return;
         }
 
         Logger.Log("UpdateChecker: no parseable tag_name in response.");
-        return null;
     }
 
     /// <summary>Parses a tag like "v0.3.1" or "0.3.1" into a 3-part Version.</summary>

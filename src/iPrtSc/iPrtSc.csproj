@@ -12,7 +12,7 @@
     <AssemblyName>iPrtSc</AssemblyName>
     <RootNamespace>iPrtSc</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <Version>0.7.1</Version>
+    <Version>0.7.2</Version>
     <!-- WPF takes DPI awareness from app.manifest; silence the WinForms-only analyzer. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>

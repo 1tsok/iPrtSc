@@ -42,6 +42,10 @@ public class AppSettings
     /// <summary>Latest release version string seen on GitHub, e.g. "0.3.1"; null => unknown.</summary>
     public string? LatestVersionSeen { get; set; }
 
+    /// <summary>HTTP ETag of the last successful release fetch; sent as If-None-Match so an
+    /// unchanged release answers 304 (no body, not counted against the API rate limit).</summary>
+    public string? LatestEtag { get; set; }
+
     public string HotkeyDisplay =>
         (!string.IsNullOrWhiteSpace(HotkeyModifiers) && !HotkeyModifiers.Equals("None", StringComparison.OrdinalIgnoreCase))
             ? HotkeyModifiers.Replace(",", " + ") + " + " + HotkeyKey
@@ -60,6 +64,7 @@ public class AppSettings
         HistoryRetentionDays = HistoryRetentionDays,
         RestoreSnippingToolWhenReleased = RestoreSnippingToolWhenReleased,
         LastUpdateCheckUtc = LastUpdateCheckUtc,
-        LatestVersionSeen = LatestVersionSeen
+        LatestVersionSeen = LatestVersionSeen,
+        LatestEtag = LatestEtag
     };
 }

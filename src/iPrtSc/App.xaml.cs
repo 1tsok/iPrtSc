@@ -18,6 +18,7 @@ public partial class App : Application
     private Mutex? _singleInstance;
     private bool _updateAvailable;
     private string? _latestVersion;
+    private DispatcherTimer? _updateTimer;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -54,6 +55,14 @@ public partial class App : Application
             SyncPrintScreenOverride();
             SetupHotkey();
             _ = CheckForUpdatesAsync();
+            // Re-check periodically so a long-running session still notices new releases;
+            // UpdateChecker throttles the actual network calls (and uses an ETag) internally.
+            _updateTimer = new DispatcherTimer(DispatcherPriority.Background)
+            {
+                Interval = TimeSpan.FromHours(6)
+            };
+            _updateTimer.Tick += (_, _) => _ = CheckForUpdatesAsync();
+            _updateTimer.Start();
             Task.Run(() => HistoryService.Prune(_settings.HistoryRetentionDays));
             Logger.Log("Startup complete.");
         }
@@ -210,13 +219,16 @@ public partial class App : Application
             var result = await UpdateChecker.CheckAsync(_settings);
             SettingsStore.Save(_settings); // persist throttle timestamp + cached latest version
 
-            if (!result.UpdateAvailable) return;
+            if (!result.UpdateAvailable || _updateAvailable) return;
 
             // Marshal UI changes (tray icon, tooltip) back onto the UI thread.
             await Dispatcher.InvokeAsync(() =>
             {
                 _updateAvailable = true;
                 _latestVersion = result.LatestVersion;
+                _updateTimer?.Stop(); // badge stays until restart; no need to keep polling
+
+
 
                 var old = _tray.Icon;
                 _tray.Icon = IconFactory.CreateAppIcon(updateBadge: true);
