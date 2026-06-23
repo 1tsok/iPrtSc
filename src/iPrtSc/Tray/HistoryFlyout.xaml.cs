@@ -13,7 +13,7 @@ namespace iPrtSc;
 
 /// <summary>
 /// A tray flyout showing thumbnails of the most recent history screenshots.
-/// Left-click opens the file; right-click or Shift-click copies it to the clipboard.
+/// Left-click copies the file to the clipboard; right-click opens it.
 /// </summary>
 public partial class HistoryFlyout : Window
 {
@@ -51,12 +51,8 @@ public partial class HistoryFlyout : Window
                 Child = img,
                 ToolTip = $"{Path.GetFileName(path)}\n{File.GetLastWriteTime(path):g}"
             };
-            tile.MouseLeftButtonUp += (_, e) =>
-            {
-                if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) Copy(path);
-                else Open(path);
-            };
-            tile.MouseRightButtonUp += (_, _) => Copy(path);
+            tile.MouseLeftButtonUp += (_, _) => Copy(path);
+            tile.MouseRightButtonUp += (_, _) => Open(path);
 
             ThumbHost.Children.Add(tile);
         }

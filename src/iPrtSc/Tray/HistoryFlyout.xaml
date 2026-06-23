@@ -39,7 +39,7 @@
                 <TextBlock x:Name="EmptyLabel" Text="No screenshots yet" Foreground="{StaticResource Fg2}"
                            FontSize="13" Margin="6,8,6,12" Visibility="Collapsed"/>
                 <TextBlock Foreground="{StaticResource Fg2}" FontSize="11" Margin="6,6,6,2"
-                           Text="Left-click: open  ·  Right-click / Shift: copy"/>
+                           Text="Left-click: copy  ·  Right-click: open"/>
             </StackPanel>
         </Border>
     </Grid>
