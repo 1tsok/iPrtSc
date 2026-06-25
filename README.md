@@ -16,13 +16,14 @@ area, annotate, then copy or save — all from the system tray.
 
 - **Global hotkey** to start a capture (configurable; default **Home**).
 - **Full multi-monitor capture**, DPI-aware (PerMonitor V2).
-- **Annotation tools** — pen, marker, line, arrow, rectangle, text,
+- **Annotation tools** — pen, marker, line, arrow, rectangle, ellipse, text,
   numbered counter and blur, plus move and undo/redo.
+- **Colour palette** — a 30-colour grid to recolour any annotation.
 - **Copy or save** — quick-save or a save dialog, PNG or JPEG.
 - **Screenshot history** with thumbnails in the tray and automatic cleanup.
 - **Update notifications** in the tray when a new version is available.
-- **Print Screen support** on Windows 11 — manages the Snipping Tool shortcut
-  for you so the key triggers iPrtSc.
+- **Print Screen support** on Windows 11 — reclaims the Print Screen key
+  so it triggers iPrtSc.
 - **Runs in the tray**, with optional autostart at sign-in.
 
 ## Install
