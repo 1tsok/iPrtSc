@@ -16,13 +16,20 @@ namespace iPrtSc;
 
 public partial class OverlayWindow : Window
 {
-    private enum Tool { Select, Pen, Marker, Line, Arrow, Rect, Text, Counter, Blur, Move }
+    private enum Tool { Select, Pen, Marker, Line, Arrow, Rect, Ellipse, Text, Counter, Blur, Move }
 
     // The highlighter draws much wider than the nominal brush thickness.
     private const double MarkerScale = 3.0;
 
+    // Default palette, laid out as a 6-column grid (greys, warm, cool, deep, pastel).
     private static readonly string[] ColorPresets =
-        { "#FFFF3B30", "#FFFFCC00", "#FF34C759", "#FF0A84FF", "#FFFFFFFF", "#FF1C1C1E" };
+    {
+        "#FF000000", "#FFFFFFFF", "#FFD6D6D6", "#FFA6A6A6", "#FF808080", "#FF5C5C5C",
+        "#FFB5176B", "#FFE81123", "#FFFF4500", "#FFFF8C00", "#FFFFB900", "#FFFFF100",
+        "#FF8CC63F", "#FF16C60C", "#FF018574", "#FF0099BC", "#FF0050EF", "#FF3A1DB8",
+        "#FF8000FF", "#FF5B0E8B", "#FFF2C9A8", "#FFB58455", "#FF8B5A2B", "#FF5A3825",
+        "#FFFF80C0", "#FFFFBE7D", "#FFFBF08C", "#FF9CE8AE", "#FF8AD1F5", "#FFC2A8F0",
+    };
 
     private readonly Drawing.Rectangle _bounds;
     private readonly AppSettings _settings;
@@ -40,7 +47,8 @@ public partial class OverlayWindow : Window
     private Rect _sel = Rect.Empty;
 
     private Tool _tool = Tool.Select;
-    private string _colorHex = "#FFFF3B30";
+    private Tool _shape = Tool.Arrow;   // last shape picked from the shapes group
+    private string _colorHex = "#FFE81123";   // red, also present in ColorPresets
     private double _thickness = 4;
     private int _counter = 1;
 
@@ -90,6 +98,7 @@ public partial class OverlayWindow : Window
         UpdateDim(Rect.Empty);
         PositionHint();
         BuildColorSwatches();
+        UpdateShapesIcon();
         BuildHandles();
         ToolSelect.IsChecked = true;
         UpdateUndoRedo();
@@ -101,7 +110,7 @@ public partial class OverlayWindow : Window
     private void OnMouseDown(object sender, MouseButtonEventArgs e)
     {
         var p = e.GetPosition(Root);
-        HideColorFlyout();
+        HideFlyouts();
 
         if (_tool == Tool.Move)
         {
@@ -167,7 +176,7 @@ public partial class OverlayWindow : Window
     private static Point Constrain(Point a, Point b, Tool t)
     {
         double dx = b.X - a.X, dy = b.Y - a.Y;
-        if (t is Tool.Rect)
+        if (t is Tool.Rect or Tool.Ellipse)
         {
             double s = Math.Max(Math.Abs(dx), Math.Abs(dy));
             return new Point(a.X + Math.Sign(dx) * s, a.Y + Math.Sign(dy) * s);
@@ -259,6 +268,9 @@ public partial class OverlayWindow : Window
             case Tool.Rect:
                 _current = new RectAnnotation(brush, _thickness);
                 break;
+            case Tool.Ellipse:
+                _current = new EllipseAnnotation(brush, _thickness);
+                break;
             case Tool.Blur:
                 _current = new PixelateAnnotation(_src, _scale);
                 break;
@@ -327,7 +339,7 @@ public partial class OverlayWindow : Window
 
     private void OnRightClick(object sender, MouseButtonEventArgs e)
     {
-        HideColorFlyout();
+        HideFlyouts();
         bool hasSel = _sel.Width >= 4 && _sel.Height >= 4;
 
         MenuItem Item(string header, string gesture, bool enabled, Action action)
@@ -419,21 +431,96 @@ public partial class OverlayWindow : Window
     // ===== Toolbar state =====
     private void OnToolClick(object sender, RoutedEventArgs e)
     {
-        var tag = (string)((ToggleButton)sender).Tag;
-        _tool = Enum.Parse<Tool>(tag);
-        foreach (var tb in ToolToggles())
-            tb.IsChecked = ReferenceEquals(tb, sender);
+        var btn = (ToggleButton)sender;
+        SelectTool(Enum.Parse<Tool>((string)btn.Tag), btn);
+    }
 
-        HideColorFlyout();
+    /// <summary>Activate a tool and sync the panel toggles + cursor.</summary>
+    private void SelectTool(Tool tool, ToggleButton checkedBtn)
+    {
+        _tool = tool;
+        foreach (var tb in ToolToggles())
+            tb.IsChecked = ReferenceEquals(tb, checkedBtn);
+
+        HideFlyouts();
         UpdateCursor(Mouse.GetPosition(Root));
         ShowHandles();
     }
 
+    // Shapes group: a short click reuses the last-picked shape; press-and-hold (or right-click)
+    // opens the picker. We take over the toggle's mouse handling so the click vs. hold split is ours.
+    private System.Windows.Threading.DispatcherTimer? _shapesHold;
+    private bool _shapesHeld;
+
+    private void OnShapesDown(object sender, MouseButtonEventArgs e)
+    {
+        _shapesHeld = false;
+        if (_shapesHold == null)
+        {
+            _shapesHold = new System.Windows.Threading.DispatcherTimer
+                { Interval = TimeSpan.FromMilliseconds(350) };
+            _shapesHold.Tick += OnShapesHoldTick;
+        }
+        _shapesHold.Start();
+        e.Handled = true;   // suppress the default toggle so we drive activation ourselves
+    }
+
+    private void OnShapesHoldTick(object? sender, EventArgs e)
+    {
+        _shapesHold?.Stop();
+        _shapesHeld = true;
+        OpenShapesPicker();
+    }
+
+    private void OnShapesUp(object sender, MouseButtonEventArgs e)
+    {
+        _shapesHold?.Stop();
+        if (!_shapesHeld) SelectTool(_shape, ShapesGroup);   // short click → reuse last shape
+        e.Handled = true;
+    }
+
+    private void OnShapesRightUp(object sender, MouseButtonEventArgs e)
+    {
+        _shapesHold?.Stop();
+        OpenShapesPicker();
+        e.Handled = true;   // don't fall through to the canvas context menu
+    }
+
+    private void OpenShapesPicker()
+    {
+        HideColorFlyout();
+        ShowShapesFlyout();
+    }
+
+    private void OnShapePick(object sender, RoutedEventArgs e)
+    {
+        _shape = Enum.Parse<Tool>((string)((ToggleButton)sender).Tag);
+        UpdateShapesIcon();
+        SelectTool(_shape, ShapesGroup);   // activates the shape and closes the flyout
+    }
+
+    private ToggleButton[] ShapeButtons() => new[] { ToolArrow, ToolLine, ToolRect, ToolEllipse };
+
+    /// <summary>Mirror the active shape onto the group button and highlight it in the picker.</summary>
+    private void UpdateShapesIcon()
+    {
+        foreach (var b in ShapeButtons())
+        {
+            bool active = (string)b.Tag == _shape.ToString();
+            b.IsChecked = active;
+            if (active)
+            {
+                var canvas = (Canvas)((Viewbox)b.Content).Child;
+                ShapesIcon.Data = canvas.Children.OfType<System.Windows.Shapes.Path>().First().Data;
+            }
+        }
+    }
+
     private IEnumerable<ToggleButton> ToolToggles() => new[]
-        { ToolSelect, ToolPen, ToolMarker, ToolLine, ToolArrow, ToolRect, ToolText, ToolCounter, ToolBlur, ToolMove };
+        { ToolSelect, ToolPen, ToolMarker, ShapesGroup, ToolText, ToolCounter, ToolBlur, ToolMove };
 
     private static bool UsesBrush(Tool t) =>
-        t is Tool.Pen or Tool.Marker or Tool.Line or Tool.Arrow or Tool.Rect;
+        t is Tool.Pen or Tool.Marker or Tool.Line or Tool.Arrow or Tool.Rect or Tool.Ellipse;
 
     /// <summary>On-screen brush diameter for the active tool (the marker draws wider).</summary>
     private double EffectiveThickness() => _tool == Tool.Marker ? _thickness * MarkerScale : _thickness;
@@ -520,9 +607,10 @@ public partial class OverlayWindow : Window
         ColorRow.Children.Clear();
         foreach (var hex in ColorPresets)
         {
-            // The colored dot is a true Ellipse (always circular), centered inside a
-            // larger transparent Border that hosts the white selection ring. Keeping the
-            // ring on the outer container means it can never clip or shrink the dot.
+            // The colored dot is a true Ellipse (always circular), centered inside a larger
+            // transparent Border that hosts the accent selection ring. The transparent gap
+            // between dot and ring reads as a clean halo on any swatch colour (incl. white/black),
+            // and keeping the ring on the outer container means it can never clip or shrink the dot.
             var dot = new System.Windows.Shapes.Ellipse
             {
                 Width = 16,
@@ -533,13 +621,13 @@ public partial class OverlayWindow : Window
             };
             var sw = new Border
             {
-                Width = 22,
-                Height = 22,
-                CornerRadius = new CornerRadius(11),
-                Margin = new Thickness(1, 0, 1, 0),
+                Width = 24,
+                Height = 24,
+                CornerRadius = new CornerRadius(12),
+                Margin = new Thickness(2),
                 Tag = hex,
                 Background = Brushes.Transparent,
-                BorderBrush = Brushes.White,
+                BorderBrush = (Brush)Resources["Accent"],
                 BorderThickness = new Thickness(0),
                 VerticalAlignment = VerticalAlignment.Center,
                 Child = dot
@@ -548,6 +636,7 @@ public partial class OverlayWindow : Window
             ColorRow.Children.Add(sw);
         }
         RefreshColorSelection();
+        ColorDot.Fill = ToBrush(_colorHex);   // keep the toolbar dot in sync with the default
     }
 
     private void OnColorClick(object sender, MouseButtonEventArgs e)
@@ -567,7 +656,7 @@ public partial class OverlayWindow : Window
     private void RefreshColorSelection()
     {
         foreach (var c in ColorRow.Children.OfType<Border>())
-            c.BorderThickness = new Thickness(((string)c.Tag).Equals(_colorHex, StringComparison.OrdinalIgnoreCase) ? 2.5 : 0);
+            c.BorderThickness = new Thickness(((string)c.Tag).Equals(_colorHex, StringComparison.OrdinalIgnoreCase) ? 2 : 0);
     }
 
     private void OnColorButtonClick(object sender, RoutedEventArgs e)
@@ -577,6 +666,7 @@ public partial class OverlayWindow : Window
             HideColorFlyout();
             return;
         }
+        HideShapesFlyout();
 
         ColorFlyout.Visibility = Visibility.Visible;
         ColorFlyout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -594,6 +684,27 @@ public partial class OverlayWindow : Window
     }
 
     private void HideColorFlyout() => ColorFlyout.Visibility = Visibility.Collapsed;
+
+    private void ShowShapesFlyout()
+    {
+        ShapesFlyout.Visibility = Visibility.Visible;
+        ShapesFlyout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double fw = ShapesFlyout.DesiredSize.Width, fh = ShapesFlyout.DesiredSize.Height;
+
+        // Anchor to the left of the shapes button, vertically centered on it.
+        var anchor = ShapesGroup.TransformToAncestor(Root).Transform(new Point(0, 0));
+        double x = anchor.X - fw - 6;
+        if (x < 8) x = anchor.X + ShapesGroup.ActualWidth + 6; // fall back to the right
+        double y = anchor.Y + ShapesGroup.ActualHeight / 2 - fh / 2;
+        y = Math.Max(8, Math.Min(y, Root.ActualHeight - fh - 8));
+
+        Canvas.SetLeft(ShapesFlyout, x);
+        Canvas.SetTop(ShapesFlyout, y);
+    }
+
+    private void HideShapesFlyout() => ShapesFlyout.Visibility = Visibility.Collapsed;
+
+    private void HideFlyouts() { HideColorFlyout(); HideShapesFlyout(); }
 
     // ===== Selection visuals =====
     private void UpdateSelection()
@@ -626,7 +737,7 @@ public partial class OverlayWindow : Window
         SizeLabel.Visibility = Visibility.Collapsed;
         ToolPanel.Visibility = Visibility.Collapsed;
         ActionPanel.Visibility = Visibility.Collapsed;
-        HideColorFlyout();
+        HideFlyouts();
         foreach (var h in _handles) h.Visibility = Visibility.Collapsed;
         HintPill.Visibility = Visibility.Visible;
         UpdateDim(Rect.Empty);
