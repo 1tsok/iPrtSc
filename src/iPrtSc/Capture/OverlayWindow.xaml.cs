@@ -62,6 +62,11 @@ public partial class OverlayWindow : Window
     private Point _moveStart;
     private double _moveOrigX, _moveOrigY;
 
+    // Whole-selection drag (Select tool, dragging inside the selected region)
+    private bool _movingSel;
+    private Point _selMoveStart;
+    private Rect _selMoveOrig;
+
     public event Action<string>? Saved;
     public event Action? Copied;
 
@@ -126,6 +131,17 @@ public partial class OverlayWindow : Window
             return;
         }
 
+        // Select tool, click inside the selection → drag the whole region instead of
+        // starting over. A drag that begins on the dimmed backdrop still makes a fresh one.
+        if (_tool == Tool.Select && insideSelection)
+        {
+            _movingSel = true;
+            _selMoveStart = p;
+            _selMoveOrig = _sel;
+            Hit.CaptureMouse();
+            return;
+        }
+
         // Start a new selection (and discard any existing annotations).
         ClearAnnotations();
         _dragging = true;
@@ -147,6 +163,17 @@ public partial class OverlayWindow : Window
             var v = p - _moveStart;
             _moveTransform.X = _moveOrigX + v.X;
             _moveTransform.Y = _moveOrigY + v.Y;
+            return;
+        }
+
+        if (_movingSel)
+        {
+            var v = p - _selMoveStart;
+            double nx = Math.Clamp(_selMoveOrig.X + v.X, 0, Root.ActualWidth - _selMoveOrig.Width);
+            double ny = Math.Clamp(_selMoveOrig.Y + v.Y, 0, Root.ActualHeight - _selMoveOrig.Height);
+            _sel = new Rect(nx, ny, _selMoveOrig.Width, _selMoveOrig.Height);
+            UpdateSelection();
+            PositionPanels();
             return;
         }
 
@@ -207,6 +234,13 @@ public partial class OverlayWindow : Window
                         redo: () => { tt.X = nx; tt.Y = ny; });
             }
             _moveTransform = null;
+            return;
+        }
+
+        if (_movingSel)
+        {
+            _movingSel = false;
+            Hit.ReleaseMouseCapture();
             return;
         }
 
@@ -527,6 +561,10 @@ public partial class OverlayWindow : Window
 
     private void UpdateCursor(Point p)
     {
+        // Keep the move cursor steady while dragging the selection, even when the clamped
+        // region briefly trails the pointer at a desktop edge.
+        if (_movingSel) { BrushCursor.Visibility = Visibility.Collapsed; Hit.Cursor = Cursors.SizeAll; return; }
+
         // The "screenshot plane" is the selected region. Only there does the cursor change;
         // over the dimmed backdrop (and the chrome) it stays a plain arrow.
         bool inSel = !_sel.IsEmpty && _sel.Contains(p);
@@ -550,6 +588,7 @@ public partial class OverlayWindow : Window
             : _tool switch
             {
                 Tool.Text => Cursors.IBeam,
+                Tool.Select => Cursors.SizeAll,   // drag the whole selection to reposition it
                 Tool.Move => Cursors.SizeAll,
                 _ => Cursors.Cross
             };

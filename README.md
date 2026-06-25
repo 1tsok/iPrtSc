@@ -16,6 +16,7 @@ area, annotate, then copy or save — all from the system tray.
 
 - **Global hotkey** to start a capture (configurable; default **Home**).
 - **Full multi-monitor capture**, DPI-aware (PerMonitor V2).
+- **Adjustable selection** — drag the handles to resize, or drag inside to reposition.
 - **Annotation tools** — pen, marker, line, arrow, rectangle, ellipse, text,
   numbered counter and blur, plus move and undo/redo.
 - **Colour palette** — a 30-colour grid to recolour any annotation.
