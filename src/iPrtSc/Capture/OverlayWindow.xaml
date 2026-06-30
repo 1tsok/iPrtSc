@@ -362,6 +362,13 @@
                     <DropShadowEffect BlurRadius="3" ShadowDepth="0" Color="Black" Opacity="0.7"/>
                 </Ellipse.Effect>
             </Ellipse>
+            <!-- I-beam caret previewing the text height while the wheel scales it. -->
+            <Path x:Name="TextCursor" Visibility="Collapsed" IsHitTestVisible="False"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                <Path.Effect>
+                    <DropShadowEffect BlurRadius="3" ShadowDepth="0" Color="Black" Opacity="0.7"/>
+                </Path.Effect>
+            </Path>
         </Canvas>
     </Grid>
 </Window>

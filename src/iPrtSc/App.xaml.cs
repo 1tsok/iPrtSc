@@ -134,11 +134,16 @@ public partial class App : Application
         _trayMenu?.Close();
 
         var menu = new TrayMenuWindow();
+        if (_updateAvailable)
+        {
+            menu.AddItem($"Download update v{_latestVersion}", "", OpenReleasesPage, badge: true);
+            menu.AddSeparator();
+        }
         menu.AddItem("Capture", _settings.HotkeyDisplay, BeginCapture);
         if (_settings.HistoryRetentionDays > 0)
             menu.AddItem("History…", _settings.HistoryHotkeyDisplay, ShowHistoryFlyout);
         menu.AddItem("Settings…", "", OpenSettings);
-        menu.AddItem("About", "", OpenAbout, badge: _updateAvailable);
+        menu.AddItem("About", "", OpenAbout);
         menu.AddSeparator();
         menu.AddItem("Exit", "", ExitApp);
         menu.Closed += (_, _) => { if (ReferenceEquals(_trayMenu, menu)) _trayMenu = null; };
@@ -305,8 +310,19 @@ public partial class App : Application
 
     private void OpenAbout()
     {
-        try { new AboutWindow(_updateAvailable ? _latestVersion : null).ShowDialog(); }
+        try { new AboutWindow().ShowDialog(); }
         catch (Exception ex) { Logger.Log("OpenAbout", ex); }
+    }
+
+    /// <summary>Opens the GitHub releases page so the user can download a pending update.</summary>
+    private void OpenReleasesPage()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(UpdateChecker.ReleasesUrl) { UseShellExecute = true });
+        }
+        catch (Exception ex) { Logger.Log("OpenReleasesPage", ex); }
     }
 
     private void BeginCapture()

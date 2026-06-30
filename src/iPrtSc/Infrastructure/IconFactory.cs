@@ -79,19 +79,12 @@ public static class IconFactory
 
     private static void DrawUpdateBadge(Graphics g, float sz)
     {
-        const float dot  = 11f;   // orange dot diameter
-        const float ring = 2f;    // white separator ring thickness
+        const float dot  = 13f;   // orange dot diameter
         const float edge = 0.5f;  // keep the badge clear of the icon edge so it isn't clipped
 
-        float outer = dot + 2 * ring;     // full badge diameter (white ring included)
-        float ox = sz - edge - outer, oy = ox;
-
-        // White ring punches the dot out from the logo so it reads as a deliberate badge,
-        // not a stray pixel; works on both light and dark taskbars.
-        using (var white = new SolidBrush(Color.White))
-            g.FillEllipse(white, ox, oy, outer, outer);
+        float ox = sz - edge - dot, oy = ox;
 
         using var fill = new SolidBrush(Color.FromArgb(255, 255, 149, 0)); // iOS-style orange
-        g.FillEllipse(fill, ox + ring, oy + ring, dot, dot);
+        g.FillEllipse(fill, ox, oy, dot, dot);
     }
 }

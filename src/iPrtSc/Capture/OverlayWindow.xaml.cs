@@ -578,11 +578,48 @@ public partial class OverlayWindow : Window
             Canvas.SetLeft(BrushCursor, p.X - d / 2);
             Canvas.SetTop(BrushCursor, p.Y - d / 2);
             BrushCursor.Visibility = Visibility.Visible;
+            TextCursor.Visibility = Visibility.Collapsed;
+            Hit.Cursor = Cursors.None;
+            return;
+        }
+
+        // The counter is a circle, so preview its size with the same brush ring (centred,
+        // matching where PlaceCounter drops it).
+        if (_tool == Tool.Counter && inSel)
+        {
+            double d = 16 + _thickness * 2;
+            BrushCursor.Width = d;
+            BrushCursor.Height = d;
+            BrushCursor.Stroke = ToBrush(_colorHex);
+            Canvas.SetLeft(BrushCursor, p.X - d / 2);
+            Canvas.SetTop(BrushCursor, p.Y - d / 2);
+            BrushCursor.Visibility = Visibility.Visible;
+            TextCursor.Visibility = Visibility.Collapsed;
+            Hit.Cursor = Cursors.None;
+            return;
+        }
+
+        // Text has no fixed footprint, so preview the font size with an I-beam caret sized to
+        // the line height and anchored at the top-left, exactly where PlaceText starts the box.
+        if (_tool == Tool.Text && inSel)
+        {
+            double fs = 12 + _thickness * 3;
+            double h = fs * 1.05;                      // ~cap-to-descender height of the actual text
+            double c = Math.Max(3, h * 0.14);          // half-width of the top/bottom serifs
+            TextCursor.Stroke = ToBrush(_colorHex);
+            TextCursor.StrokeThickness = Math.Clamp(fs * 0.07, 1.5, 4);
+            TextCursor.Data = Geometry.Parse(FormattableString.Invariant(
+                $"M {-c},0 L {c},0 M 0,0 L 0,{h} M {-c},{h} L {c},{h}"));
+            Canvas.SetLeft(TextCursor, p.X);
+            Canvas.SetTop(TextCursor, p.Y);
+            TextCursor.Visibility = Visibility.Visible;
+            BrushCursor.Visibility = Visibility.Collapsed;
             Hit.Cursor = Cursors.None;
             return;
         }
 
         BrushCursor.Visibility = Visibility.Collapsed;
+        TextCursor.Visibility = Visibility.Collapsed;
         Hit.Cursor = !inSel
             ? Cursors.Arrow
             : _tool switch
@@ -596,7 +633,7 @@ public partial class OverlayWindow : Window
 
     private void OnWheel(object sender, MouseWheelEventArgs e)
     {
-        if (UsesBrush(_tool))
+        if (UsesBrush(_tool) || _tool is Tool.Text or Tool.Counter)
         {
             _thickness = Math.Clamp(_thickness + (e.Delta > 0 ? 1 : -1), 1, 50);
             UpdateCursor(Mouse.GetPosition(Root));

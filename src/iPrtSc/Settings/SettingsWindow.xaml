@@ -392,7 +392,7 @@
 
             <!-- Pinned action bar: always visible regardless of content height -->
             <Border Grid.Row="1" Background="#FF1C1C1E" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="24,24,24,24">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,16,16,16">
                     <Button Style="{StaticResource Secondary}" Width="100" Margin="0,0,10,0" Click="OnCancel">
                         <StackPanel Orientation="Horizontal">
                             <Viewbox Width="15" Height="15" Margin="0,0,7,0" VerticalAlignment="Center"><Canvas Width="24" Height="24">
