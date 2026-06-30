@@ -27,6 +27,8 @@ public partial class SettingsWindow : Window
     private Dictionary<string, FrameworkElement> _panels = null!;
     private string _hkKey;
     private string _hkMods;
+    private string _histKey;     // "" => no History hotkey
+    private string _histMods;
     private string? _folder;     // null => default
     private string _accent;
 
@@ -42,11 +44,14 @@ public partial class SettingsWindow : Window
 
         _hkKey = working.HotkeyKey;
         _hkMods = working.HotkeyModifiers;
+        _histKey = working.HistoryHotkeyKey;
+        _histMods = working.HistoryHotkeyModifiers;
         _folder = working.SaveFolder;
         _accent = working.AccentColor;
         Resources["Accent"] = ToBrush(_accent); // live-tint the active controls
 
-        HotkeyButton.Content = DisplayOf(_hkKey, _hkMods);
+        ShowHotkey(HotkeyButton, _hkKey, _hkMods);
+        ShowHotkey(HistoryHotkeyButton, _histKey, _histMods);
         AskWhereSwitch.IsChecked = working.AskWhereToSave;
         CopyOnSaveSwitch.IsChecked = working.CopyToClipboardAlways;
         AutoStartSwitch.IsChecked = working.AutoStart;
@@ -95,66 +100,146 @@ public partial class SettingsWindow : Window
                 panel.Visibility = k == key ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    // ---- Hotkey capture ----
-    private void EnterListening()
+    // ---- Hotkey capture (shared by the Capture and History fields) ----
+    private const string HistoryDisabledText = "Enable history first";
+
+    /// <summary>Shows a binding in a field, dimming the text when there is none ("None").</summary>
+    private void ShowHotkey(Button field, string key, string mods)
     {
-        HotkeyButton.Content = "Press a key combination…";
-        HotkeyHint.Text = "Listening — press the keys you want, e.g. Ctrl + Alt + Home.";
+        field.Content = DisplayOf(key, mods);
+        field.Foreground = (Brush)FindResource(string.IsNullOrWhiteSpace(key) ? "Fg3" : "Fg");
     }
 
-    private void OnHotkeyFocus(object sender, RoutedEventArgs e) => EnterListening();
+    private void EnterListening(Button field)
+    {
+        field.Content = "Press a key combination…";
+        field.Foreground = (Brush)FindResource("Fg3"); // placeholder reads as muted
+    }
+
+    private static Key KeyOf(KeyEventArgs e) => e.Key == Key.System ? e.SystemKey : e.Key;
+
+    /// <summary>
+    /// Reads a complete key combination from the event into <paramref name="key"/> +
+    /// <paramref name="mods"/>. Returns false for a lone modifier (keep listening).
+    /// </summary>
+    private static bool ReadCombo(KeyEventArgs e, out string key, out string mods)
+    {
+        e.Handled = true;
+        key = ""; mods = "None";
+
+        var k = KeyOf(e);
+        if (k is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
+                or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin or Key.System or Key.None)
+            return false; // modifier alone — wait for the real key
+
+        int vk = KeyInterop.VirtualKeyFromKey(k);
+        key = ((Forms.Keys)vk).ToString();
+
+        var m = new List<string>();
+        if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) m.Add("Control");
+        if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0) m.Add("Alt");
+        if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) m.Add("Shift");
+        if ((Keyboard.Modifiers & ModifierKeys.Windows) != 0) m.Add("Win");
+        mods = m.Count > 0 ? string.Join(",", m) : "None";
+        return true;
+    }
+
+    private static string DisplayOf(string key, string mods) =>
+        string.IsNullOrWhiteSpace(key) ? "None"
+        : (!string.IsNullOrWhiteSpace(mods) && !mods.Equals("None", StringComparison.OrdinalIgnoreCase))
+            ? mods.Replace(",", " + ") + " + " + key
+            : key;
+
+    // -- Capture hotkey --
+    private void OnHotkeyFocus(object sender, RoutedEventArgs e) => EnterListening(HotkeyButton);
 
     private void OnHotkeyClick(object sender, MouseButtonEventArgs e)
     {
         // GotFocus only fires on the focus transition, so clicking an already-focused
         // field would otherwise do nothing — re-enter listening mode on every click.
         if (HotkeyButton.IsKeyboardFocused)
-            EnterListening();
+            EnterListening(HotkeyButton);
     }
 
-    private void OnHotkeyBlur(object sender, RoutedEventArgs e)
+    private void OnHotkeyBlur(object sender, RoutedEventArgs e) => ShowHotkey(HotkeyButton, _hkKey, _hkMods);
+
+    private void OnHotkeyKeyDown(object sender, KeyEventArgs e)
     {
-        HotkeyButton.Content = DisplayOf(_hkKey, _hkMods);
-        HotkeyHint.Text = "Click the field, then press the desired key combination.";
+        if (ReadCombo(e, out var key, out var mods))
+        {
+            _hkKey = key; _hkMods = mods;
+            ShowHotkey(HotkeyButton, _hkKey, _hkMods);
+        }
     }
-
-    private void OnHotkeyKeyDown(object sender, KeyEventArgs e) => CaptureHotkey(e);
 
     private void OnHotkeyKeyUp(object sender, KeyEventArgs e)
     {
         // The Print Screen key never raises KeyDown in Win32/WPF — only KeyUp — so it
         // must be captured here, otherwise it can't be bound as a hotkey.
-        var key = e.Key == Key.System ? e.SystemKey : e.Key;
-        if (key == Key.Snapshot)
-            CaptureHotkey(e);
+        if (KeyOf(e) == Key.Snapshot && ReadCombo(e, out var key, out var mods))
+        {
+            _hkKey = key; _hkMods = mods;
+            ShowHotkey(HotkeyButton, _hkKey, _hkMods);
+        }
     }
 
-    private void CaptureHotkey(KeyEventArgs e)
+    // -- History hotkey (optional; Backspace or Delete clears it) --
+    private void OnHistoryHotkeyFocus(object sender, RoutedEventArgs e) => EnterListening(HistoryHotkeyButton);
+
+    private void OnHistoryHotkeyClick(object sender, MouseButtonEventArgs e)
     {
-        e.Handled = true;
-        var key = e.Key == Key.System ? e.SystemKey : e.Key;
-
-        if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
-                or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin or Key.System or Key.None)
-            return; // modifier alone — wait for the real key
-
-        int vk = KeyInterop.VirtualKeyFromKey(key);
-        _hkKey = ((Forms.Keys)vk).ToString();
-
-        var mods = new List<string>();
-        if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) mods.Add("Control");
-        if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0) mods.Add("Alt");
-        if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) mods.Add("Shift");
-        if ((Keyboard.Modifiers & ModifierKeys.Windows) != 0) mods.Add("Win");
-        _hkMods = mods.Count > 0 ? string.Join(",", mods) : "None";
-
-        HotkeyButton.Content = DisplayOf(_hkKey, _hkMods);
+        if (HistoryHotkeyButton.IsKeyboardFocused)
+            EnterListening(HistoryHotkeyButton);
     }
 
-    private static string DisplayOf(string key, string mods) =>
-        (!string.IsNullOrWhiteSpace(mods) && !mods.Equals("None", StringComparison.OrdinalIgnoreCase))
-            ? mods.Replace(",", " + ") + " + " + key
-            : key;
+    private void OnHistoryHotkeyBlur(object sender, RoutedEventArgs e)
+    {
+        if (HistoryHotkeyButton.IsEnabled) ShowHotkey(HistoryHotkeyButton, _histKey, _histMods);
+    }
+
+    /// <summary>The History hotkey only does anything while History is on, so disable its field
+    /// (and let it explain itself) whenever retention is set to Off.</summary>
+    private void OnRetentionChanged(object sender, RoutedEventArgs e) => UpdateHistoryHotkeyEnabled();
+
+    private void UpdateHistoryHotkeyEnabled()
+    {
+        bool enabled = HistOff.IsChecked != true;
+        HistoryHotkeyButton.IsEnabled = enabled;
+        if (enabled)
+        {
+            ShowHotkey(HistoryHotkeyButton, _histKey, _histMods);
+        }
+        else
+        {
+            HistoryHotkeyButton.Content = HistoryDisabledText;
+            HistoryHotkeyButton.Foreground = (Brush)FindResource("Fg3");
+        }
+    }
+
+    private void OnHistoryHotkeyKeyDown(object sender, KeyEventArgs e)
+    {
+        if (KeyOf(e) is Key.Back or Key.Delete) // clear the binding
+        {
+            e.Handled = true;
+            _histKey = ""; _histMods = "None";
+            ShowHotkey(HistoryHotkeyButton, _histKey, _histMods);
+            return;
+        }
+        if (ReadCombo(e, out var key, out var mods))
+        {
+            _histKey = key; _histMods = mods;
+            ShowHotkey(HistoryHotkeyButton, _histKey, _histMods);
+        }
+    }
+
+    private void OnHistoryHotkeyKeyUp(object sender, KeyEventArgs e)
+    {
+        if (KeyOf(e) == Key.Snapshot && ReadCombo(e, out var key, out var mods))
+        {
+            _histKey = key; _histMods = mods;
+            ShowHotkey(HistoryHotkeyButton, _histKey, _histMods);
+        }
+    }
 
     // ---- Folder ----
     private string FolderDisplay() =>
@@ -247,6 +332,8 @@ public partial class SettingsWindow : Window
     {
         _working.HotkeyKey = _hkKey;
         _working.HotkeyModifiers = _hkMods;
+        _working.HistoryHotkeyKey = _histKey;
+        _working.HistoryHotkeyModifiers = _histMods;
         _working.AskWhereToSave = AskWhereSwitch.IsChecked == true;
         _working.SaveFolder = _folder;
         _working.SaveFormat = FmtJpg.IsChecked == true ? "Jpeg" : "Png";

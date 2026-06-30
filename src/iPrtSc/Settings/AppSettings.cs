@@ -10,6 +10,12 @@ public class AppSettings
     /// <summary>Comma-separated modifiers: "None", "Control", "Alt", "Shift", "Win" (combinable).</summary>
     public string HotkeyModifiers { get; set; } = "None";
 
+    /// <summary>Optional global hotkey that opens the History flyout. Empty => no hotkey.</summary>
+    public string HistoryHotkeyKey { get; set; } = "";
+
+    /// <summary>Modifiers for the History hotkey; same format as <see cref="HotkeyModifiers"/>.</summary>
+    public string HistoryHotkeyModifiers { get; set; } = "None";
+
     /// <summary>"Png" or "Jpeg".</summary>
     public string SaveFormat { get; set; } = "Png";
 
@@ -46,15 +52,24 @@ public class AppSettings
     /// unchanged release answers 304 (no body, not counted against the API rate limit).</summary>
     public string? LatestEtag { get; set; }
 
-    public string HotkeyDisplay =>
-        (!string.IsNullOrWhiteSpace(HotkeyModifiers) && !HotkeyModifiers.Equals("None", StringComparison.OrdinalIgnoreCase))
-            ? HotkeyModifiers.Replace(",", " + ") + " + " + HotkeyKey
-            : HotkeyKey;
+    public string HotkeyDisplay => Display(HotkeyKey, HotkeyModifiers);
+
+    /// <summary>Human-readable History hotkey, or "" when none is set.</summary>
+    public string HistoryHotkeyDisplay => Display(HistoryHotkeyKey, HistoryHotkeyModifiers);
+
+    /// <summary>Formats a key + modifiers as "Ctrl + Alt + Home"; returns "" for an unset key.</summary>
+    public static string Display(string key, string mods) =>
+        string.IsNullOrWhiteSpace(key) ? ""
+        : (!string.IsNullOrWhiteSpace(mods) && !mods.Equals("None", StringComparison.OrdinalIgnoreCase))
+            ? mods.Replace(",", " + ") + " + " + key
+            : key;
 
     public AppSettings Clone() => new()
     {
         HotkeyKey = HotkeyKey,
         HotkeyModifiers = HotkeyModifiers,
+        HistoryHotkeyKey = HistoryHotkeyKey,
+        HistoryHotkeyModifiers = HistoryHotkeyModifiers,
         SaveFormat = SaveFormat,
         SaveFolder = SaveFolder,
         CopyToClipboardAlways = CopyToClipboardAlways,

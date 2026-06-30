@@ -23,6 +23,37 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
         </Style>
+
+        <!-- Footer action button (matches the flyout's subtle dark style) -->
+        <Style x:Key="FolderBtn" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="#16FFFFFF" CornerRadius="7" Padding="8,7"
+                                BorderBrush="#22FFFFFF" BorderThickness="1">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Viewbox Width="14" Height="14" Margin="0,0,7,0" VerticalAlignment="Center">
+                                    <Canvas Width="24" Height="24">
+                                        <Path Stroke="{StaticResource Fg}" StrokeThickness="1.6"
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                              Fill="Transparent" Data="M3 7a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.4.6L12 7h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                    </Canvas>
+                                </Viewbox>
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#2BFFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <!-- Outer margin leaves room for the drop shadow (window is transparent). -->
@@ -33,13 +64,24 @@
                 <DropShadowEffect BlurRadius="22" ShadowDepth="4" Opacity="0.55" Color="Black"/>
             </Border.Effect>
             <StackPanel>
-                <TextBlock Text="Recent screenshots" Foreground="{StaticResource Fg}"
-                           FontSize="12.5" FontWeight="SemiBold" Margin="6,4,0,8"/>
+                <!-- Header doubles as a drag handle so the flyout can be repositioned. -->
+                <Border Background="Transparent" Cursor="SizeAll" Margin="0,0,0,8"
+                        MouseLeftButtonDown="OnDragHandle">
+                    <Grid Margin="6,4,4,0">
+                        <TextBlock Text="Recent screenshots" Foreground="{StaticResource Fg}"
+                                   FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <!-- Subtle grip hinting the header is draggable -->
+                        <Path HorizontalAlignment="Right" VerticalAlignment="Center" Fill="{StaticResource Fg2}"
+                              Data="M0 0h2v2H0z M4 0h2v2H4z M0 4h2v2H0z M4 4h2v2H4z M0 8h2v2H0z M4 8h2v2H4z"/>
+                    </Grid>
+                </Border>
                 <WrapPanel x:Name="ThumbHost" Width="366"/>
                 <TextBlock x:Name="EmptyLabel" Text="No screenshots yet" Foreground="{StaticResource Fg2}"
                            FontSize="13" Margin="6,8,6,12" Visibility="Collapsed"/>
-                <TextBlock Foreground="{StaticResource Fg2}" FontSize="11" Margin="6,6,6,2"
+                <TextBlock x:Name="ClickHint" Foreground="{StaticResource Fg2}" FontSize="11" Margin="6,6,6,8"
                            Text="Left-click: copy  ·  Right-click: open"/>
+                <Button Style="{StaticResource FolderBtn}" Content="Open history folder"
+                        Click="OnOpenFolder" Margin="5,0,5,4"/>
             </StackPanel>
         </Border>
     </Grid>

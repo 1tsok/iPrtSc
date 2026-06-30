@@ -75,22 +75,36 @@ public partial class App : Application
     private void SetupHotkey()
     {
         _hotkey = new HotkeyManager();
-        _hotkey.Pressed += OnHotkeyPressed;
+        _hotkey.CapturePressed += OnHotkeyPressed;
+        _hotkey.HistoryPressed += OnHistoryHotkeyPressed;
 
-        bool ok = _hotkey.Register(_settings);
+        bool ok = _hotkey.RegisterCapture(_settings);
         Logger.Log($"RegisterHotKey({_settings.HotkeyDisplay}) => {ok}");
         if (!ok)
-        {
-            _tray.ShowBalloonTip(3500, "iPrtSc",
-                $"Could not register the hotkey \"{_settings.HotkeyDisplay}\" — it may be in use by another app.",
-                Forms.ToolTipIcon.Warning);
-        }
+            WarnHotkeyFailed(_settings.HotkeyDisplay);
+
+        bool histOk = _hotkey.RegisterHistory(_settings);
+        Logger.Log($"RegisterHistoryHotKey({_settings.HistoryHotkeyDisplay}) => {histOk}");
+        if (!histOk)
+            WarnHotkeyFailed(_settings.HistoryHotkeyDisplay);
     }
+
+    private void WarnHotkeyFailed(string display) =>
+        _tray.ShowBalloonTip(3500, "iPrtSc",
+            $"Could not register the hotkey \"{display}\" — it may be in use by another app.",
+            Forms.ToolTipIcon.Warning);
 
     private void OnHotkeyPressed()
     {
         Logger.Log("Hotkey pressed.");
         BeginCapture();
+    }
+
+    private void OnHistoryHotkeyPressed()
+    {
+        Logger.Log("History hotkey pressed.");
+        if (_settings.HistoryRetentionDays > 0)
+            ShowHistoryFlyout();
     }
 
     private void SetupTray()
@@ -122,7 +136,7 @@ public partial class App : Application
         var menu = new TrayMenuWindow();
         menu.AddItem("Capture", _settings.HotkeyDisplay, BeginCapture);
         if (_settings.HistoryRetentionDays > 0)
-            menu.AddItem("History…", "", ShowHistoryFlyout);
+            menu.AddItem("History…", _settings.HistoryHotkeyDisplay, ShowHistoryFlyout);
         menu.AddItem("Settings…", "", OpenSettings);
         menu.AddItem("About", "", OpenAbout, badge: _updateAvailable);
         menu.AddSeparator();
@@ -250,9 +264,9 @@ public partial class App : Application
 
     private void OpenSettings()
     {
-        // Release the global hotkey while the dialog is open, otherwise pressing it
-        // into the capture field fires a capture instead of being recorded.
-        _hotkey.Unregister();
+        // Release the global hotkeys while the dialog is open, otherwise pressing one
+        // into a capture field fires the action instead of being recorded.
+        _hotkey.UnregisterAll();
 
         // Disable the Snipping Tool Print Screen shortcut while Settings is open, otherwise pressing
         // Print Screen into the capture field would launch Snipping Tool over the dialog instead of
@@ -279,16 +293,13 @@ public partial class App : Application
         }
         finally
         {
-            // Re-register whether saved or cancelled, so the hotkey is always live again.
-            bool ok = _hotkey.Register(_settings);
-            Logger.Log($"Settings closed. Re-register hotkey({_settings.HotkeyDisplay}) => {ok}");
+            // Re-register whether saved or cancelled, so the hotkeys are always live again.
+            bool ok = _hotkey.RegisterCapture(_settings);
+            bool histOk = _hotkey.RegisterHistory(_settings);
+            Logger.Log($"Settings closed. Re-register capture({_settings.HotkeyDisplay})={ok} history({_settings.HistoryHotkeyDisplay})={histOk}");
             _tray.Text = TrayTooltip();
-            if (!ok)
-            {
-                _tray.ShowBalloonTip(3500, "iPrtSc",
-                    $"Could not register the hotkey \"{_settings.HotkeyDisplay}\" — it may be in use by another app.",
-                    Forms.ToolTipIcon.Warning);
-            }
+            if (!ok) WarnHotkeyFailed(_settings.HotkeyDisplay);
+            if (!histOk) WarnHotkeyFailed(_settings.HistoryHotkeyDisplay);
         }
     }
 

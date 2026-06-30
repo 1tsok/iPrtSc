@@ -30,6 +30,7 @@ public partial class HistoryFlyout : Window
         if (files.Count == 0)
         {
             ThumbHost.Visibility = Visibility.Collapsed;
+            ClickHint.Visibility = Visibility.Collapsed; // nothing to click
             EmptyLabel.Visibility = Visibility.Visible;
             return;
         }
@@ -78,6 +79,26 @@ public partial class HistoryFlyout : Window
             Logger.Log($"HistoryFlyout.LoadThumbnail({path})", ex);
             return null;
         }
+    }
+
+    /// <summary>Lets the user reposition the flyout by dragging its header.</summary>
+    private void OnDragHandle(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+            try { DragMove(); } catch { /* mouse already released — ignore */ }
+    }
+
+    private void OnOpenFolder(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(HistoryService.HistoryFolder);
+            // Pass the path as an argument rather than ShellExecuting the folder directly:
+            // the latter can race the shell namespace on a just-created folder.
+            System.Diagnostics.Process.Start("explorer.exe", $"\"{HistoryService.HistoryFolder}\"");
+        }
+        catch (Exception ex) { Logger.Log("HistoryFlyout.OnOpenFolder", ex); }
+        Dismiss();
     }
 
     private void Open(string path)

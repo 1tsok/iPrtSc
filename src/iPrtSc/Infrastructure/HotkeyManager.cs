@@ -5,18 +5,23 @@ using Forms = System.Windows.Forms;
 namespace iPrtSc;
 
 /// <summary>
-/// Registers a single global hotkey via a hidden message window and
-/// raises <see cref="Pressed"/> when it fires.
+/// Registers the app's global hotkeys via a hidden message window and raises an event
+/// when one fires: <see cref="CapturePressed"/> for Capture, <see cref="HistoryPressed"/>
+/// for the optional History hotkey.
 /// </summary>
 public sealed class HotkeyManager : IDisposable
 {
     private const int WM_HOTKEY = 0x0312;
-    private const int HotkeyId = 0x4953; // 'IS'
     private const uint MOD_NOREPEAT = 0x4000;
+
+    // Distinct ids so the two hotkeys can be registered and identified independently.
+    private const int CaptureId = 0x4953; // 'IS'
+    private const int HistoryId = 0x4954;
 
     private readonly HwndSource _src;
 
-    public event Action? Pressed;
+    public event Action? CapturePressed;
+    public event Action? HistoryPressed;
 
     public HotkeyManager()
     {
@@ -32,17 +37,33 @@ public sealed class HotkeyManager : IDisposable
         _src.AddHook(Hook);
     }
 
-    /// <summary>Registers the hotkey described by the settings. Returns false on failure.</summary>
-    public bool Register(AppSettings s)
-    {
-        NativeMethods.UnregisterHotKey(_src.Handle, HotkeyId);
+    /// <summary>Registers the Capture hotkey from the settings. Returns false on failure.</summary>
+    public bool RegisterCapture(AppSettings s) =>
+        RegisterOne(CaptureId, s.HotkeyKey, s.HotkeyModifiers);
 
-        if (!Enum.TryParse<Forms.Keys>(s.HotkeyKey, ignoreCase: true, out var key))
+    /// <summary>
+    /// Registers the History hotkey if one is set and History is enabled. An unset hotkey
+    /// (or disabled History) is a no-op that returns true so the key stays free for other
+    /// apps; a configured hotkey that fails to register returns false.
+    /// </summary>
+    public bool RegisterHistory(AppSettings s)
+    {
+        NativeMethods.UnregisterHotKey(_src.Handle, HistoryId);
+        if (string.IsNullOrWhiteSpace(s.HistoryHotkeyKey) || s.HistoryRetentionDays <= 0)
+            return true;
+        return RegisterOne(HistoryId, s.HistoryHotkeyKey, s.HistoryHotkeyModifiers);
+    }
+
+    private bool RegisterOne(int id, string keyName, string modifiers)
+    {
+        NativeMethods.UnregisterHotKey(_src.Handle, id);
+
+        if (!Enum.TryParse<Forms.Keys>(keyName, ignoreCase: true, out var key))
             return false;
 
         uint vk = (uint)key;
         uint mods = 0;
-        foreach (var part in s.HotkeyModifiers.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var part in modifiers.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             mods |= part.ToLowerInvariant() switch
             {
@@ -54,35 +75,46 @@ public sealed class HotkeyManager : IDisposable
             };
         }
 
-        bool ok = NativeMethods.RegisterHotKey(_src.Handle, HotkeyId, mods | MOD_NOREPEAT, vk);
-        Logger.Log($"HotkeyManager.Register vk=0x{vk:X2} mods=0x{mods:X2} handle=0x{_src.Handle.ToInt64():X} ok={ok}");
+        bool ok = NativeMethods.RegisterHotKey(_src.Handle, id, mods | MOD_NOREPEAT, vk);
+        Logger.Log($"HotkeyManager.Register id=0x{id:X} vk=0x{vk:X2} mods=0x{mods:X2} handle=0x{_src.Handle.ToInt64():X} ok={ok}");
         return ok;
     }
 
     /// <summary>
-    /// Temporarily releases the global hotkey so it stops firing — used while the
-    /// Settings window is open so the user can press the hotkey into the capture field.
+    /// Temporarily releases all global hotkeys so they stop firing — used while the Settings
+    /// window is open so the user can press a hotkey into a capture field.
     /// </summary>
-    public void Unregister()
+    public void UnregisterAll()
     {
-        NativeMethods.UnregisterHotKey(_src.Handle, HotkeyId);
-        Logger.Log("HotkeyManager.Unregister");
+        NativeMethods.UnregisterHotKey(_src.Handle, CaptureId);
+        NativeMethods.UnregisterHotKey(_src.Handle, HistoryId);
+        Logger.Log("HotkeyManager.UnregisterAll");
     }
 
     private IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == WM_HOTKEY && wParam.ToInt32() == HotkeyId)
+        if (msg == WM_HOTKEY)
         {
-            Logger.Log("WM_HOTKEY received.");
-            Pressed?.Invoke();
-            handled = true;
+            int id = wParam.ToInt32();
+            if (id == CaptureId)
+            {
+                Logger.Log("WM_HOTKEY received (Capture).");
+                CapturePressed?.Invoke();
+                handled = true;
+            }
+            else if (id == HistoryId)
+            {
+                Logger.Log("WM_HOTKEY received (History).");
+                HistoryPressed?.Invoke();
+                handled = true;
+            }
         }
         return IntPtr.Zero;
     }
 
     public void Dispose()
     {
-        NativeMethods.UnregisterHotKey(_src.Handle, HotkeyId);
+        UnregisterAll();
         _src.RemoveHook(Hook);
         _src.Dispose();
     }

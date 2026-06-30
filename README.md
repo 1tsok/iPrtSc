@@ -21,7 +21,8 @@ area, annotate, then copy or save — all from the system tray.
   numbered counter and blur, plus move and undo/redo.
 - **Colour palette** — a 30-colour grid to recolour any annotation.
 - **Copy or save** — quick-save or a save dialog, PNG or JPEG.
-- **Screenshot history** with thumbnails in the tray and automatic cleanup.
+- **Screenshot history** with thumbnails in the tray, an optional hotkey, and
+  automatic cleanup.
 - **Update notifications** in the tray when a new version is available.
 - **Print Screen support** on Windows 11 — reclaims the Print Screen key
   so it triggers iPrtSc.
@@ -55,6 +56,8 @@ in-app Settings window (tray → Settings).
   `PrintScreen`, `F9`).
 - `HotkeyModifiers` — `None`, or a comma-separated combination of
   `Control,Alt,Shift,Win`.
+- `HistoryHotkeyKey` / `HistoryHotkeyModifiers` — optional hotkey that opens the
+  History flyout; leave the key empty for none.
 
 > A hotkey without a modifier (e.g. `Home`) is captured globally, so that key
 > won't perform its normal function in other apps while iPrtSc is running.
