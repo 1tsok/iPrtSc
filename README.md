@@ -21,6 +21,9 @@ area, annotate, then copy or save — all from the system tray.
   numbered counter and blur, plus move and undo/redo.
 - **Colour palette** — a 30-colour grid to recolour any annotation.
 - **Copy or save** — quick-save or a save dialog, PNG or JPEG.
+- **Grab text (OCR)** — recognise text in the selection, drag to highlight the words
+  you want, and copy them. Powered by PaddleOCR (English, Ukrainian and other
+  Cyrillic scripts out of the box).
 - **Screenshot history** with thumbnails in the tray, an optional hotkey, and
   automatic cleanup.
 - **Update notifications** in the tray when a new version is available.

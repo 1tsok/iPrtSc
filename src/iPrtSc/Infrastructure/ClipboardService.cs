@@ -43,4 +43,11 @@ public static class ClipboardService
 
         Forms.Clipboard.SetDataObject(data, copy: true);
     }
+
+    /// <summary>Puts plain text on the clipboard (e.g. OCR output). No-op for empty text.</summary>
+    public static void CopyText(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        Forms.Clipboard.SetText(text);
+    }
 }

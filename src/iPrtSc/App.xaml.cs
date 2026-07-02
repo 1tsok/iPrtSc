@@ -342,6 +342,8 @@ public partial class App : Application
             _overlay = new OverlayWindow(cap.bmp, cap.src, cap.bounds, _settings);
             _overlay.Saved += path =>
                 _tray.ShowBalloonTip(2500, "iPrtSc", $"Saved: {path}", Forms.ToolTipIcon.Info);
+            _overlay.TextCopied += _ =>
+                _tray.ShowBalloonTip(2000, "iPrtSc", "Text copied to clipboard", Forms.ToolTipIcon.Info);
             _overlay.Closed += (_, _) =>
             {
                 cap.bmp.Dispose();

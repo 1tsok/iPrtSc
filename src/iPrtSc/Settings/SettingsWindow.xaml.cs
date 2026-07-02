@@ -67,6 +67,7 @@ public partial class SettingsWindow : Window
             ["Hotkey"] = PanelHotkey,
             ["Saving"] = PanelSaving,
             ["Clipboard"] = PanelClipboard,
+            ["Text"] = PanelText,
             ["History"] = PanelHistory,
             ["Appearance"] = PanelAppearance,
             ["System"] = PanelSystem
@@ -82,6 +83,13 @@ public partial class SettingsWindow : Window
         }).IsChecked = true;
 
         BuildAccentSwatches();
+        PopulateOcrLanguages();
+    }
+
+    // ---- Text (OCR) ----
+    private void PopulateOcrLanguages()
+    {
+        OcrLangs.Text = string.Join(", ", OcrService.Languages());
     }
 
     protected override void OnSourceInitialized(EventArgs e)

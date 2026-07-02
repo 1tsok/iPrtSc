@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -16,7 +17,7 @@ namespace iPrtSc;
 
 public partial class OverlayWindow : Window
 {
-    private enum Tool { Select, Pen, Marker, Line, Arrow, Rect, Ellipse, Text, Counter, Blur, Move }
+    private enum Tool { Select, Pen, Marker, Line, Arrow, Rect, Ellipse, Text, OcrText, Counter, Blur, Move }
 
     // The highlighter draws much wider than the nominal brush thickness.
     private const double MarkerScale = 3.0;
@@ -67,8 +68,27 @@ public partial class OverlayWindow : Window
     private Point _selMoveStart;
     private Rect _selMoveOrig;
 
+    // OCR text grab: recognized words rendered as selectable boxes over the photo.
+    private sealed class OcrWordBox
+    {
+        public required Rect Rect;       // overlay DIP coordinates
+        public required string Text;
+        public required int Line;
+        public required WpfRect Shape;   // the highlight rectangle on OcrLayer
+    }
+    private readonly List<OcrWordBox> _ocrWords = new();
+    private bool _ocrDone;               // OCR has run for the current selection
+    private Rect _ocrRect = Rect.Empty;  // the selection the words were built for
+    private bool _ocrSelecting;          // a rubber-band drag is in progress
+    private Point _ocrDragStart;
+    private WpfRect? _ocrBand;           // the rubber-band rectangle visual
+    private readonly HashSet<int> _selWords = new();   // indices of currently selected words
+    private Brush _ocrIdleFill = Brushes.Transparent;
+    private Brush _ocrSelFill = Brushes.Transparent;
+
     public event Action<string>? Saved;
     public event Action? Copied;
+    public event Action<string>? TextCopied;   // carries the recognized text (for a confirmation toast)
 
     public OverlayWindow(Drawing.Bitmap full, BitmapSource src, Drawing.Rectangle bounds, AppSettings settings)
     {
@@ -124,6 +144,19 @@ public partial class OverlayWindow : Window
 
         bool insideSelection = !_sel.IsEmpty && _sel.Contains(p);
 
+        if (_tool == Tool.OcrText)
+        {
+            if (insideSelection && _ocrWords.Count > 0)
+            {
+                _ocrSelecting = true;
+                _ocrDragStart = p;
+                ShowBand(new Rect(p, p));
+                HintPill.Visibility = Visibility.Collapsed;
+                Hit.CaptureMouse();
+            }
+            return;   // never starts a new region or annotation
+        }
+
         if (_tool != Tool.Select && insideSelection)
         {
             BeginAnnotation(p);
@@ -155,6 +188,14 @@ public partial class OverlayWindow : Window
     {
         var p = e.GetPosition(Root);
         UpdateCursor(p);
+
+        if (_ocrSelecting)
+        {
+            var rect = new Rect(_ocrDragStart, Clamp(p, _sel));
+            ShowBand(rect);
+            SelectWordsIn(rect);
+            return;
+        }
 
         if (_moving && _moveTransform != null)
         {
@@ -218,6 +259,23 @@ public partial class OverlayWindow : Window
 
     private void OnMouseUp(object sender, MouseButtonEventArgs e)
     {
+        if (_ocrSelecting)
+        {
+            _ocrSelecting = false;
+            Hit.ReleaseMouseCapture();
+            HideBand();
+
+            // A click (negligible drag) selects just the word under the pointer.
+            if ((e.GetPosition(Root) - _ocrDragStart).Length < 3)
+            {
+                _selWords.Clear();
+                int wi = WordAt(_ocrDragStart);
+                if (wi >= 0) _selWords.Add(wi);
+                UpdateOcrHighlights();
+            }
+            return;
+        }
+
         if (_moving)
         {
             _moving = false;
@@ -388,8 +446,9 @@ public partial class OverlayWindow : Window
         }
 
         var menu = new ContextMenu { Style = (Style)FindResource("CtxMenu") };
-        menu.Items.Add(Item("Copy",              "Enter",  hasSel, DoCopy));
-        menu.Items.Add(Item("Save",              "Ctrl+S", hasSel, DoSave));
+        menu.Items.Add(Item("Copy",              "Enter",        hasSel, DoCopy));
+        menu.Items.Add(Item("Copy text",         "Ctrl+Shift+C", hasSel, () => _ = DoCopyText()));
+        menu.Items.Add(Item("Save",              "Ctrl+S",       hasSel, DoSave));
         menu.Items.Add(new Separator { Style = (Style)FindResource("CtxSep") });
         menu.Items.Add(Item("Select full screen","Ctrl+A", true,   SelectFullScreen));
         menu.Items.Add(Item("Clear selection",   "",       hasSel, DoClearSelection));
@@ -400,6 +459,19 @@ public partial class OverlayWindow : Window
         menu.PlacementTarget = this;
         menu.IsOpen = true;
         e.Handled = true;
+    }
+
+    /// <summary>Ctrl+A: select all words in the Grab-text tool, otherwise select the full screen.</summary>
+    private void SelectAllOrFullScreen()
+    {
+        if (_tool == Tool.OcrText && _ocrWords.Count > 0)
+        {
+            _selWords.Clear();
+            for (int i = 0; i < _ocrWords.Count; i++) _selWords.Add(i);
+            UpdateOcrHighlights();
+            return;
+        }
+        SelectFullScreen();
     }
 
     private void SelectFullScreen()
@@ -456,6 +528,7 @@ public partial class OverlayWindow : Window
         _redo.Clear();
         _counter = 1;
         _current = null;
+        ClearOcr();   // recognized words belong to the old selection — drop them
         UpdateUndoRedo();
     }
 
@@ -463,7 +536,9 @@ public partial class OverlayWindow : Window
     private void OnToolClick(object sender, RoutedEventArgs e)
     {
         var btn = (ToggleButton)sender;
-        SelectTool(Enum.Parse<Tool>((string)btn.Tag), btn);
+        var tool = Enum.Parse<Tool>((string)btn.Tag);
+        if (tool == Tool.OcrText) { _ = EnterOcrMode(); return; }
+        SelectTool(tool, btn);
     }
 
     /// <summary>Activate a tool and sync the panel toggles + cursor.</summary>
@@ -472,6 +547,8 @@ public partial class OverlayWindow : Window
         _tool = tool;
         foreach (var tb in ToolToggles())
             tb.IsChecked = ReferenceEquals(tb, checkedBtn);
+
+        OcrLayer.Visibility = tool == Tool.OcrText ? Visibility.Visible : Visibility.Collapsed;
 
         HideFlyouts();
         UpdateCursor(Mouse.GetPosition(Root));
@@ -548,7 +625,7 @@ public partial class OverlayWindow : Window
     }
 
     private IEnumerable<ToggleButton> ToolToggles() => new[]
-        { ToolSelect, ToolPen, ToolMarker, ShapesGroup, ToolText, ToolCounter, ToolBlur, ToolMove };
+        { ToolSelect, ToolPen, ToolMarker, ShapesGroup, ToolText, ToolOcr, ToolCounter, ToolBlur, ToolMove };
 
     private static bool UsesBrush(Tool t) =>
         t is Tool.Pen or Tool.Marker or Tool.Line or Tool.Arrow or Tool.Rect or Tool.Ellipse;
@@ -622,6 +699,7 @@ public partial class OverlayWindow : Window
             : _tool switch
             {
                 Tool.Text => Cursors.IBeam,
+                Tool.OcrText => Cursors.Arrow,
                 Tool.Select => Cursors.SizeAll,   // drag the whole selection to reposition it
                 Tool.Move => Cursors.SizeAll,
                 _ => Cursors.Cross
@@ -995,11 +1073,9 @@ public partial class OverlayWindow : Window
     /// shows up as scattered bright speckles. Annotations are rendered on their own
     /// transparent layer and alpha-composited over the pristine crop in code.
     /// </summary>
-    private BitmapSource ComposeSelection()
+    /// <summary>Selection rectangle mapped into source (physical) pixels, clamped to the bitmap.</summary>
+    private Int32Rect SelectionRectPx()
     {
-        // Drop focus so a text caret isn't captured.
-        Keyboard.ClearFocus();
-
         int x = (int)Math.Round(_sel.X * _scale);
         int y = (int)Math.Round(_sel.Y * _scale);
         int w = (int)Math.Round(_sel.Width * _scale);
@@ -1008,6 +1084,24 @@ public partial class OverlayWindow : Window
         y = Math.Clamp(y, 0, _src.PixelHeight - 1);
         w = Math.Clamp(w, 1, _src.PixelWidth - x);
         h = Math.Clamp(h, 1, _src.PixelHeight - y);
+        return new Int32Rect(x, y, w, h);
+    }
+
+    /// <summary>The pristine photo crop, without any annotations — what OCR reads.</summary>
+    private BitmapSource CropPhoto()
+    {
+        var crop = new CroppedBitmap(_src, SelectionRectPx());
+        crop.Freeze();
+        return crop;
+    }
+
+    private BitmapSource ComposeSelection()
+    {
+        // Drop focus so a text caret isn't captured.
+        Keyboard.ClearFocus();
+
+        var px = SelectionRectPx();
+        int x = px.X, y = px.Y, w = px.Width, h = px.Height;
         if (AnnotCanvas.Children.Count == 0)
         {
             var plain = new CroppedBitmap(_src, new Int32Rect(x, y, w, h));
@@ -1098,6 +1192,206 @@ public partial class OverlayWindow : Window
         Close();
     }
 
+    /// <summary>
+    /// Copies recognized text. If the user has highlighted specific words (Grab text tool),
+    /// copies just those; otherwise copies everything found in the selection.
+    /// </summary>
+    private async System.Threading.Tasks.Task DoCopyText()
+    {
+        if (_sel.Width < 1 || _sel.Height < 1) return;
+        if (!await EnsureOcrAsync()) return;            // hint already surfaced on failure
+        if (_ocrWords.Count == 0) { ShowHint("No text found in selection"); return; }
+
+        string text = OcrText(selectedOnly: _selWords.Count > 0);
+        if (string.IsNullOrWhiteSpace(text)) { ShowHint("No text found in selection"); return; }
+
+        ClipboardService.CopyText(text);
+        TextCopied?.Invoke(text);
+        Close();
+    }
+
+    /// <summary>Surfaces a transient status message (OCR feedback) centered over the selection.</summary>
+    private void ShowHint(string message)
+    {
+        HintText.Text = message;
+        HintPill.Visibility = Visibility.Visible;
+
+        HintPill.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double x = _sel.Left + (_sel.Width - HintPill.DesiredSize.Width) / 2;
+        double y = _sel.Top + (_sel.Height - HintPill.DesiredSize.Height) / 2;
+        Canvas.SetLeft(HintPill, Math.Max(8, x));
+        Canvas.SetTop(HintPill, Math.Max(8, y));
+    }
+
+    // ===== OCR text grab =====
+    /// <summary>Activates the Grab-text tool and recognizes the selection's text.</summary>
+    private async System.Threading.Tasks.Task EnterOcrMode()
+    {
+        SelectTool(Tool.OcrText, ToolOcr);
+        if (!await EnsureOcrAsync()) { SelectTool(Tool.Select, ToolSelect); return; }
+        if (_ocrWords.Count == 0) ShowHint("No text found in selection");
+        else ShowHint("Drag to select text    •    Enter to copy");
+    }
+
+    /// <summary>
+    /// Runs OCR for the current selection (once, then cached) and builds the selectable
+    /// word boxes. Returns false — surfacing a hint — when OCR is unavailable or errors.
+    /// </summary>
+    private async System.Threading.Tasks.Task<bool> EnsureOcrAsync()
+    {
+        if (_ocrDone && _ocrRect == _sel) return true;
+        ClearOcr();
+
+        if (!OcrService.IsAvailable) { ShowHint("OCR language pack not installed"); return false; }
+
+        ShowHint("Recognizing text…");
+        IReadOnlyList<OcrService.Word> words;
+        try { words = await OcrService.RecognizeWordsAsync(CropPhoto()); }
+        catch (Exception ex) { Logger.Log("EnsureOcrAsync", ex); ShowHint("Text recognition failed"); return false; }
+
+        _ocrDone = true;
+        _ocrRect = _sel;
+        BuildOcrWordBoxes(words);
+        HintPill.Visibility = Visibility.Collapsed;
+        return true;
+    }
+
+    private void BuildOcrWordBoxes(IReadOnlyList<OcrService.Word> words)
+    {
+        var accent = (Resources["Accent"] as SolidColorBrush)?.Color ?? Colors.DodgerBlue;
+        _ocrIdleFill = Brushes.Transparent;   // the word area is left un-dimmed, so no idle tint
+        _ocrSelFill = new SolidColorBrush(Color.FromArgb(0x80, accent.R, accent.G, accent.B));
+        _ocrSelFill.Freeze();
+
+        if (words.Count == 0) return;
+
+        // Strongly dim the capture, but punch holes so recognized text stays at full
+        // brightness — the high-contrast "text actions" look, via an even-odd geometry
+        // (outer selection rect minus the holes).
+        var holes = new GeometryGroup { FillRule = FillRule.EvenOdd };
+        holes.Children.Add(new RectangleGeometry(_sel));
+
+        var shapes = new List<WpfRect>(words.Count);
+        foreach (var w in words)
+        {
+            // Word boxes come back in source pixels relative to the crop; map to overlay DIP.
+            var r = new Rect(_sel.Left + w.X / _scale, _sel.Top + w.Y / _scale,
+                             w.Width / _scale, w.Height / _scale);
+
+            // Per-word selection highlight; the veil itself opens per line (below).
+            var hl = Rect.Inflate(r, 2, 1);
+            var shape = new WpfRect
+            {
+                Width = hl.Width,
+                Height = hl.Height,
+                RadiusX = 3,
+                RadiusY = 3,
+                Fill = _ocrIdleFill
+            };
+            Canvas.SetLeft(shape, hl.X);
+            Canvas.SetTop(shape, hl.Y);
+            shapes.Add(shape);
+            _ocrWords.Add(new OcrWordBox { Rect = r, Text = w.Text, Line = w.Line, Shape = shape });
+        }
+
+        // Open the veil one rectangle per line (the union of the line's words) rather than
+        // per word — a continuous band reads cleanly, where ragged per-word cut-outs left
+        // half-letters and stray speck-sized holes from any leftover noise.
+        foreach (var lineGroup in _ocrWords.GroupBy(b => b.Line))
+        {
+            Rect band = Rect.Empty;
+            foreach (var b in lineGroup) band.Union(b.Rect);
+            holes.Children.Add(new RectangleGeometry(Rect.Inflate(band, 3, 2), 4, 4));
+        }
+
+        var veil = new System.Windows.Shapes.Path
+        {
+            Data = holes,
+            Fill = new SolidColorBrush(Color.FromArgb(0xB8, 0, 0, 0)),
+            IsHitTestVisible = false
+        };
+        OcrLayer.Children.Add(veil);                 // veil first …
+        foreach (var s in shapes) OcrLayer.Children.Add(s);   // … selection highlights on top
+    }
+
+    private void ClearOcr()
+    {
+        OcrLayer.Children.Clear();
+        _ocrWords.Clear();
+        _selWords.Clear();
+        _ocrBand = null;   // was removed by the Children.Clear above
+        _ocrDone = false;
+        _ocrRect = Rect.Empty;
+    }
+
+    /// <summary>Index of the word whose box contains the point, or -1 if none does.</summary>
+    private int WordAt(Point p)
+    {
+        for (int i = 0; i < _ocrWords.Count; i++)
+            if (_ocrWords[i].Rect.Contains(p)) return i;
+        return -1;
+    }
+
+    /// <summary>Selects every word the rubber-band rectangle touches.</summary>
+    private void SelectWordsIn(Rect band)
+    {
+        _selWords.Clear();
+        for (int i = 0; i < _ocrWords.Count; i++)
+            if (_ocrWords[i].Rect.IntersectsWith(band)) _selWords.Add(i);
+        UpdateOcrHighlights();
+    }
+
+    private void UpdateOcrHighlights()
+    {
+        for (int i = 0; i < _ocrWords.Count; i++)
+            _ocrWords[i].Shape.Fill = _selWords.Contains(i) ? _ocrSelFill : _ocrIdleFill;
+    }
+
+    /// <summary>
+    /// Recognized text in reading order — a space between words, a newline between lines.
+    /// With <paramref name="selectedOnly"/>, restricts output to the highlighted words.
+    /// </summary>
+    private string OcrText(bool selectedOnly)
+    {
+        var sb = new StringBuilder();
+        int? line = null;
+        for (int i = 0; i < _ocrWords.Count; i++)
+        {
+            if (selectedOnly && !_selWords.Contains(i)) continue;
+            var w = _ocrWords[i];
+            if (line != null) sb.Append(w.Line != line ? Environment.NewLine : " ");
+            sb.Append(w.Text);
+            line = w.Line;
+        }
+        return sb.ToString();
+    }
+
+    private void ShowBand(Rect r)
+    {
+        if (_ocrBand == null)
+        {
+            _ocrBand = new WpfRect
+            {
+                Stroke = (Brush)Resources["Accent"],
+                StrokeThickness = 1,
+                StrokeDashArray = new DoubleCollection { 4, 2 },
+                Fill = Brushes.Transparent,
+                IsHitTestVisible = false
+            };
+        }
+        if (!OcrLayer.Children.Contains(_ocrBand)) OcrLayer.Children.Add(_ocrBand);
+        _ocrBand.Visibility = Visibility.Visible;
+        Canvas.SetLeft(_ocrBand, r.X);
+        Canvas.SetTop(_ocrBand, r.Y);
+        _ocrBand.Width = r.Width;
+        _ocrBand.Height = r.Height;
+    }
+
+    private void HideBand()
+    {
+        if (_ocrBand != null) _ocrBand.Visibility = Visibility.Collapsed;
+    }
+
     private void DoSave()
     {
         if (_sel.Width < 1 || _sel.Height < 1) return;
@@ -1161,11 +1455,15 @@ public partial class OverlayWindow : Window
         }
 
         bool ctrl = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
+        bool shift = (Keyboard.Modifiers & ModifierKeys.Shift) != 0;
         if (e.Key == Key.Escape) { Close(); e.Handled = true; }
-        else if (e.Key == Key.Enter) { DoCopy(); e.Handled = true; }
+        // In the Grab-text tool, Enter copies the highlighted text instead of the image.
+        else if (e.Key == Key.Enter) { if (_tool == Tool.OcrText) _ = DoCopyText(); else DoCopy(); e.Handled = true; }
+        else if (ctrl && shift && e.Key == Key.C) { _ = DoCopyText(); e.Handled = true; }
+        else if (ctrl && e.Key == Key.C && _tool == Tool.OcrText) { _ = DoCopyText(); e.Handled = true; }
         else if (ctrl && e.Key == Key.S) { DoSave(); e.Handled = true; }
         else if (ctrl && e.Key == Key.Z) { Undo(); e.Handled = true; }
         else if (ctrl && e.Key == Key.Y) { Redo(); e.Handled = true; }
-        else if (ctrl && e.Key == Key.A) { SelectFullScreen(); e.Handled = true; }
+        else if (ctrl && e.Key == Key.A) { SelectAllOrFullScreen(); e.Handled = true; }
     }
 }

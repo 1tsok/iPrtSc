@@ -180,6 +180,10 @@
         <!-- Annotations (clipped to selection); hit-test enabled for the Move tool -->
         <Canvas x:Name="AnnotCanvas" IsHitTestVisible="True"/>
 
+        <!-- OCR word highlights for interactive text selection. Driven from code, never
+             part of the saved image. -->
+        <Canvas x:Name="OcrLayer" IsHitTestVisible="False" Visibility="Collapsed"/>
+
         <!-- Mouse surface. Cursor is driven from code (UpdateCursor): the special cursor
              (crosshair / brush / text / move) shows only inside the selected region; the
              dimmed backdrop and the chrome keep a plain arrow. -->
@@ -197,6 +201,14 @@
 
         <!-- Resize handles (created in code) -->
         <Canvas x:Name="HandleCanvas" IsHitTestVisible="True"/>
+
+        <!-- Transient status pill (OCR feedback only; positioned over the selection in code) -->
+        <Canvas x:Name="HintCanvas" IsHitTestVisible="False">
+            <Border x:Name="HintPill" Visibility="Collapsed"
+                    Background="#CC202124" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="10" Padding="16,9">
+                <TextBlock x:Name="HintText" Foreground="#FFEDEDED" FontSize="13" FontFamily="Segoe UI"/>
+            </Border>
+        </Canvas>
 
         <!-- Panels -->
         <Canvas x:Name="UiCanvas">
@@ -243,6 +255,11 @@
                     <ToggleButton x:Name="ToolText" Style="{StaticResource ToolToggle}" Tag="Text" ToolTip="Text" Click="OnToolClick">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
                             <Path Style="{StaticResource Icon}" Data="M4 7V4h16v3 M9 20h6 M12 4v16"/>
+                        </Canvas></Viewbox>
+                    </ToggleButton>
+                    <ToggleButton x:Name="ToolOcr" Style="{StaticResource ToolToggle}" Tag="OcrText" ToolTip="Grab text — drag to select, Enter to copy" Click="OnToolClick">
+                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
+                            <Path Style="{StaticResource Icon}" Data="M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2 M7 9h10 M7 13h10 M7 17h6"/>
                         </Canvas></Viewbox>
                     </ToggleButton>
                     <ToggleButton x:Name="ToolCounter" Style="{StaticResource ToolToggle}" Tag="Counter" ToolTip="Numbered step" Click="OnToolClick">

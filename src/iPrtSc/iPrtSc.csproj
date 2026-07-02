@@ -14,7 +14,7 @@
     <LangVersion>latest</LangVersion>
     <!-- Pixel loops in ScreenCapture write through raw LockBits pointers. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Version>0.9.2</Version>
+    <Version>0.10.0</Version>
     <!-- WPF takes DPI awareness from app.manifest; silence the WinForms-only analyzer. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
@@ -24,6 +24,19 @@
     <Resource Include="Assets\app.ico" />
     <!-- Hi-res logo for in-app surfaces (e.g. the About window). -->
     <Resource Include="Assets\icon-256.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- PaddleOCR (PP-OCRv5) backend for Grab text. Models.Local bundles the v5 detection
+         and per-script recognition models; the mkl runtime carries the native inference
+         libraries for win-x64. -->
+    <PackageReference Include="Sdcb.PaddleOCR" Version="3.3.1" />
+    <PackageReference Include="Sdcb.PaddleOCR.Models.Local" Version="3.3.1" />
+    <!-- Models.Local only floats LocalV5 >= 3.0.0, and 3.0.0 lacks the East Slavic model —
+         pin the exact version that embeds it. -->
+    <PackageReference Include="Sdcb.PaddleOCR.Models.LocalV5" Version="3.3.1" />
+    <PackageReference Include="Sdcb.PaddleInference.runtime.win64.mkl" Version="3.3.1.70" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20260627" />
   </ItemGroup>
 
 </Project>
