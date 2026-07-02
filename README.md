@@ -10,7 +10,8 @@ area, annotate, grab text, then copy or save — all from the system tray.
 
 ## Screenshot
 
-<img width="542" alt="iPrtSc capture overlay" src="docs/screenshot.png" />
+<img width="542" height="510" alt="iPrtSc_demo png" src="https://github.com/user-attachments/assets/866d8bbe-ede5-4b82-ad95-98515eae7239" />
+
 
 ## Features
 
