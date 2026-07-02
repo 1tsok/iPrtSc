@@ -230,14 +230,6 @@
                             <TextBlock Text="Clipboard" VerticalAlignment="Center" FontSize="13.5" Foreground="{StaticResource Fg}"/>
                         </StackPanel>
                     </ListBoxItem>
-                    <ListBoxItem Tag="Text">
-                        <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="17" Height="17" Margin="0,0,12,0"><Canvas Width="24" Height="24">
-                                <Path Style="{StaticResource SectionIcon}" Data="M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2 M7 9h10 M7 13h10 M7 17h6"/>
-                            </Canvas></Viewbox>
-                            <TextBlock Text="Text (OCR)" VerticalAlignment="Center" FontSize="13.5" Foreground="{StaticResource Fg}"/>
-                        </StackPanel>
-                    </ListBoxItem>
                     <ListBoxItem Tag="History">
                         <StackPanel Orientation="Horizontal">
                             <Viewbox Width="17" Height="17" Margin="0,0,12,0"><Canvas Width="24" Height="24">
@@ -340,21 +332,6 @@
                                 </StackPanel>
                                 <CheckBox x:Name="CopyOnSaveSwitch" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right"/>
                             </Grid>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- Text (OCR) -->
-                    <StackPanel x:Name="PanelText" Visibility="Collapsed">
-                        <TextBlock Style="{StaticResource PaneTitle}" Text="Text recognition"/>
-                        <Border Style="{StaticResource CardBorder}">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource Label}" Text="Grab text from a capture"/>
-                                <TextBlock Style="{StaticResource Sub}" Margin="0,2,0,12"
-                                           Text="Pick the &quot;Grab text&quot; tool in the capture toolbar, drag across the words you want, and press Ctrl+C to copy them. All languages are recognized together, so mixed text just works."/>
-
-                                <TextBlock Style="{StaticResource Label}" Text="Recognized languages" Margin="0,0,0,4"/>
-                                <TextBlock x:Name="OcrLangs" Style="{StaticResource Sub}"/>
-                            </StackPanel>
                         </Border>
                     </StackPanel>
 

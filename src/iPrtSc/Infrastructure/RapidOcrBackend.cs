@@ -18,10 +18,6 @@ namespace iPrtSc;
 /// </summary>
 internal static class RapidOcrBackend
 {
-    // Human-readable summary of what the bundled model reads, for the Settings pane.
-    public static IReadOnlyList<string> DisplayNames { get; } =
-        new[] { "English", "Ukrainian", "Russian", "Belarusian" };
-
     // Engine construction loads the onnx models (~a second), so build it once and reuse.
     // Recognition is serialized by the lock — RapidOcr sessions aren't documented as
     // thread-safe, and captures are one-at-a-time anyway.

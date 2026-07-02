@@ -1240,8 +1240,6 @@ public partial class OverlayWindow : Window
         if (_ocrDone && _ocrRect == _sel) return true;
         ClearOcr();
 
-        if (!OcrService.IsAvailable) { ShowHint("OCR language pack not installed"); return false; }
-
         ShowHint("Recognizing text…");
         IReadOnlyList<OcrService.Word> words;
         try { words = await OcrService.RecognizeWordsAsync(CropPhoto()); }

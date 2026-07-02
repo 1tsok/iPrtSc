@@ -20,12 +20,6 @@ public static class OcrService
     /// <summary>A recognized word and its bounding box in the input image's pixel space.</summary>
     public readonly record struct Word(string Text, int Line, double X, double Y, double Width, double Height);
 
-    /// <summary>True when a recognizer is available. Models ship with the app, so always.</summary>
-    public static bool IsAvailable => true;
-
-    /// <summary>Human-readable names of the languages that will be recognized.</summary>
-    public static IReadOnlyList<string> Languages() => RapidOcrBackend.DisplayNames;
-
     /// <summary>Recognizes every word in the image with its position, in reading order.</summary>
     public static Task<IReadOnlyList<Word>> RecognizeWordsAsync(BitmapSource image) =>
         RapidOcrBackend.RecognizeAsync(image);
