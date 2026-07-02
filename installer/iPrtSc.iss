@@ -56,6 +56,12 @@ Name: "uk"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
+[InstallDelete]
+; Wipe the previous version's files before installing so DLLs/assets that were
+; dropped between releases don't accumulate in {app}. Guarded by a check that
+; iPrtSc.exe is already there, so a custom folder with unrelated files is safe.
+Type: filesandordirs; Name: "{app}\*"; Check: PreviousInstallExists
+
 [Files]
 ; Whole self-contained publish folder, recursively.
 Source: "{#MyAppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -69,6 +75,24 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 ; Offer to launch right after install.
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
 
-[UninstallDelete]
-; Remove the user's settings folder on uninstall (best-effort).
-Type: filesandordirs; Name: "{userappdata}\iPrtSc"
+[CustomMessages]
+en.DeleteSettings=Do you also want to delete your iPrtSc settings and screenshot history?
+uk.DeleteSettings=Видалити також налаштування та історію знімків iPrtSc?
+
+[Code]
+// True when the chosen install folder already contains a previous iPrtSc —
+// gates [InstallDelete] so we never wipe an unrelated directory.
+function PreviousInstallExists: Boolean;
+begin
+  Result := FileExists(ExpandConstant('{app}\{#MyAppExeName}'));
+end;
+
+// On uninstall, ask before removing %APPDATA%\iPrtSc. Defaults to "No"
+// (keep settings), which is also the auto-answer for silent uninstalls.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+    if MsgBox(CustomMessage('DeleteSettings'), mbConfirmation,
+              MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      DelTree(ExpandConstant('{userappdata}\iPrtSc'), True, True, True);
+end;
