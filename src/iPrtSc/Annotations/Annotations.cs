@@ -24,6 +24,7 @@ public interface IDragAnnotation
 public interface IFreehandAnnotation
 {
     void Add(Point p);
+    void SetLine(Point a, Point b);
 }
 
 /// <summary>
@@ -67,6 +68,19 @@ public abstract class FreehandStrokeAnnotation : Annotation, IFreehandAnnotation
         }
         _pts.Add(p);
         _path.Data = BuildGeometry(Smooth(_pts));
+    }
+
+    /// <summary>
+    /// Shift mode: replaces the stroke with a straight segment from <paramref name="a"/>
+    /// to <paramref name="b"/>. Releasing Shift lets <see cref="Add"/> continue freehand
+    /// from the segment's end.
+    /// </summary>
+    public void SetLine(Point a, Point b)
+    {
+        _pts.Clear();
+        _pts.Add(a);
+        _pts.Add(b);
+        _path.Data = BuildGeometry(_pts);
     }
 
     /// <summary>

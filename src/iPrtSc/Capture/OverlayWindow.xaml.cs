@@ -224,10 +224,12 @@ public partial class OverlayWindow : Window
         else if (_drawing && _current != null)
         {
             var c = Clamp(p, _sel);
-            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                c = Constrain(_start, c, _tool);
+            bool shift = (Keyboard.Modifiers & ModifierKeys.Shift) != 0;
+            if (shift) c = Constrain(_start, c, _tool);
             switch (_current)
             {
+                // Shift straightens the stroke into a segment from where it started.
+                case IFreehandAnnotation fh when shift: fh.SetLine(_start, c); break;
                 case IFreehandAnnotation fh: fh.Add(c); break;
                 case IDragAnnotation dr: dr.Update(_start, c); break;
             }
