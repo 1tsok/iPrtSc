@@ -6,36 +6,42 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)
 
 A fast, lightweight screenshot tool for Windows 11. Press a hotkey, select an
-area, annotate, then copy or save — all from the system tray.
+area, annotate, grab text, then copy or save — all from the system tray.
 
-## Screenshots
-<img width="320" height="340" alt="image" src="https://github.com/user-attachments/assets/bb0e938d-7ac1-4245-a421-694d831c6c2a" />
+## Screenshot
 
+<img width="542" alt="iPrtSc capture overlay" src="docs/screenshot.png" />
 
 ## Features
 
-- **Global hotkey** to start a capture (configurable; default **Home**).
-- **Full multi-monitor capture**, DPI-aware (PerMonitor V2).
-- **Adjustable selection** — drag the handles to resize, or drag inside to reposition.
+- **Global hotkey** to start a capture (configurable; default **Home**),
+  full multi-monitor and DPI-aware (PerMonitor V2).
+- **Adjustable selection** — drag the handles to resize, or drag inside to
+  reposition.
 - **Annotation tools** — pen, marker, line, arrow, rectangle, ellipse, text,
-  numbered counter and blur, plus move and undo/redo.
+  numbered steps and pixelate, plus move and undo/redo. Hold **Shift** with
+  pen or marker to draw a straight line; the mouse wheel adjusts the brush,
+  text and step size on the fly.
 - **Colour palette** — a 30-colour grid to recolour any annotation.
+- **Grab text (OCR)** — recognise text in the selection, drag across the words
+  you want and press **Ctrl+C** to copy them. English and Ukrainian out of the
+  box, mixed text supported; fully on-device (PP-OCRv5 on ONNX Runtime), no
+  cloud involved.
 - **Copy or save** — quick-save or a save dialog, PNG or JPEG.
-- **Grab text (OCR)** — recognise text in the selection, drag to highlight the words
-  you want, and copy them. English and Ukrainian out of the box, mixed text
-  supported; fully on-device (PP-OCRv5 on ONNX Runtime).
 - **Screenshot history** with thumbnails in the tray, an optional hotkey, and
   automatic cleanup.
 - **Update notifications** in the tray when a new version is available.
 - **Print Screen support** on Windows 11 — reclaims the Print Screen key
   so it triggers iPrtSc.
-- **Runs in the tray**, with optional autostart at sign-in.
+- **Runs in the tray**, with optional autostart at sign-in; dark, Fluent-style
+  UI throughout.
 
 ## Install
 
 Download the latest `iPrtSc-Setup-x.y.z.exe` from the
 [Releases](https://github.com/1tsok/iPrtSc/releases) page and run it. It installs
-per-user (no admin required) and bundles the .NET runtime.
+per-user (no admin required) and bundles the .NET runtime — nothing else to
+install.
 
 ## Build from source
 
@@ -70,5 +76,6 @@ in-app Settings window (tray → Settings).
 iPrtSc is free and open-source software, released under the
 [MIT License](LICENSE).
 
-Icons are from [Lucide](https://lucide.dev) (ISC License). See
+Icons are from [Lucide](https://lucide.dev) (ISC License); text recognition
+uses PaddleOCR PP-OCRv5 models on ONNX Runtime. See
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full third-party notices.
