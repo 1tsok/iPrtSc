@@ -198,15 +198,6 @@
         <!-- Resize handles (created in code) -->
         <Canvas x:Name="HandleCanvas" IsHitTestVisible="True"/>
 
-        <!-- Hint (positioned in code, centered on the monitor under the cursor) -->
-        <Canvas x:Name="HintCanvas" IsHitTestVisible="False">
-            <Border x:Name="HintPill"
-                    Background="#CC202124" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="10" Padding="16,9">
-                <TextBlock Foreground="#FFEDEDED" FontSize="13" FontFamily="Segoe UI"
-                           Text="Drag to select    •    Enter to copy    •    Esc to cancel"/>
-            </Border>
-        </Canvas>
-
         <!-- Panels -->
         <Canvas x:Name="UiCanvas">
             <!-- Vertical tools panel (right of selection) -->

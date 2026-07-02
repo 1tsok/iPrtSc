@@ -2,7 +2,6 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
-using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using Forms = System.Windows.Forms;
 
@@ -53,22 +52,6 @@ public static class ScreenCapture
         return new Rectangle(minX, minY, maxX - minX, maxY - minY);
     }
 
-    /// <summary>Physical-pixel bounds of the monitor under the cursor (nearest if outside all).</summary>
-    public static Rectangle CursorMonitorBounds()
-    {
-        if (NativeMethods.GetCursorPos(out var pt))
-        {
-            var hMon = NativeMethods.MonitorFromPoint(pt, NativeMethods.MONITOR_DEFAULTTONEAREST);
-            var mi = new NativeMethods.MONITORINFO { cbSize = Marshal.SizeOf<NativeMethods.MONITORINFO>() };
-            if (NativeMethods.GetMonitorInfo(hMon, ref mi))
-            {
-                var m = mi.rcMonitor;
-                return new Rectangle(m.Left, m.Top, m.Right - m.Left, m.Bottom - m.Top);
-            }
-        }
-        return GetVirtualBounds();
-    }
-
     public static Bitmap Crop(Bitmap src, Rectangle r)
     {
         var dst = new Bitmap(r.Width, r.Height, PixelFormat.Format32bppArgb);
@@ -84,17 +67,18 @@ public static class ScreenCapture
     /// PNG a viewer composites them over white and they turn into bright speckles
     /// (most visible on dark photos). Setting alpha to 255 keeps the captured RGB intact.
     /// </summary>
-    private static void ForceOpaque(Bitmap bmp)
+    private static unsafe void ForceOpaque(Bitmap bmp)
     {
         var rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
         var data = bmp.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
         try
         {
-            int bytes = Math.Abs(data.Stride) * bmp.Height;
-            var buf = new byte[bytes];
-            Marshal.Copy(data.Scan0, buf, 0, bytes);
-            for (int i = 3; i < bytes; i += 4) buf[i] = 255;
-            Marshal.Copy(buf, 0, data.Scan0, bytes);
+            for (int y = 0; y < data.Height; y++)
+            {
+                byte* px = (byte*)data.Scan0 + (long)y * data.Stride;
+                for (int x = 0; x < data.Width; x++, px += 4)
+                    px[3] = 255;
+            }
         }
         finally
         {
@@ -104,17 +88,19 @@ public static class ScreenCapture
 
     public static BitmapSource ToBitmapSource(Bitmap bmp)
     {
-        var h = bmp.GetHbitmap();
+        var rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
+        var data = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
         try
         {
-            var src = Imaging.CreateBitmapSourceFromHBitmap(
-                h, IntPtr.Zero, System.Windows.Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+            var src = BitmapSource.Create(bmp.Width, bmp.Height, 96, 96,
+                System.Windows.Media.PixelFormats.Bgra32, null,
+                data.Scan0, data.Stride * bmp.Height, data.Stride);
             src.Freeze();
             return src;
         }
         finally
         {
-            NativeMethods.DeleteObject(h);
+            bmp.UnlockBits(data);
         }
     }
 }

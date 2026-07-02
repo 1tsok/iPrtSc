@@ -12,7 +12,9 @@
     <AssemblyName>iPrtSc</AssemblyName>
     <RootNamespace>iPrtSc</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <Version>0.9.1</Version>
+    <!-- Pixel loops in ScreenCapture write through raw LockBits pointers. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Version>0.9.2</Version>
     <!-- WPF takes DPI awareness from app.manifest; silence the WinForms-only analyzer. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>

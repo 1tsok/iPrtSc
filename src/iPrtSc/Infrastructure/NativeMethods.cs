@@ -33,10 +33,6 @@ internal static class NativeMethods
     public const uint WM_SETTINGCHANGE = 0x001A;
     public const uint SMTO_ABORTIFHUNG = 0x0002;
 
-    // ---- GDI ----
-    [DllImport("gdi32.dll")]
-    public static extern bool DeleteObject(IntPtr hObject);
-
     // ---- Dark title bar (Win10 1809+/Win11) ----
     [DllImport("dwmapi.dll")]
     public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
@@ -67,18 +63,4 @@ internal static class NativeMethods
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
-    // ---- Cursor / monitor lookup ----
-    [StructLayout(LayoutKind.Sequential)]
-    public struct POINT
-    {
-        public int X, Y;
-    }
-
-    [DllImport("user32.dll")]
-    public static extern bool GetCursorPos(out POINT lpPoint);
-
-    [DllImport("user32.dll")]
-    public static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
-
-    public const uint MONITOR_DEFAULTTONEAREST = 2;
 }

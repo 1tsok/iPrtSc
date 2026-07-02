@@ -101,7 +101,6 @@ public partial class OverlayWindow : Window
     {
         _scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
         UpdateDim(Rect.Empty);
-        PositionHint();
         BuildColorSwatches();
         UpdateShapesIcon();
         BuildHandles();
@@ -149,7 +148,6 @@ public partial class OverlayWindow : Window
         ToolPanel.Visibility = Visibility.Collapsed;
         ActionPanel.Visibility = Visibility.Collapsed;
         foreach (var h in _handles) h.Visibility = Visibility.Collapsed;
-        HintPill.Visibility = Visibility.Collapsed;
         Hit.CaptureMouse();
     }
 
@@ -413,7 +411,6 @@ public partial class OverlayWindow : Window
         ActionPanel.Visibility = Visibility.Visible;
         PositionPanels();
         ShowHandles();
-        HintPill.Visibility = Visibility.Collapsed;
     }
 
     private void DoClearSelection()
@@ -815,24 +812,7 @@ public partial class OverlayWindow : Window
         ActionPanel.Visibility = Visibility.Collapsed;
         HideFlyouts();
         foreach (var h in _handles) h.Visibility = Visibility.Collapsed;
-        HintPill.Visibility = Visibility.Visible;
         UpdateDim(Rect.Empty);
-    }
-
-    /// <summary>
-    /// Centers the hint pill on the monitor under the cursor. The overlay spans the whole
-    /// virtual desktop, so a plain horizontal-center would land it in the seam between
-    /// monitors; we map the active monitor's physical bounds into the window's DIP space.
-    /// </summary>
-    private void PositionHint()
-    {
-        var m = ScreenCapture.CursorMonitorBounds();
-        double centerX = (m.Left + m.Width / 2.0 - _bounds.Left) / _scale;
-        double top = (m.Top - _bounds.Top) / _scale;
-
-        HintPill.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        Canvas.SetLeft(HintPill, centerX - HintPill.DesiredSize.Width / 2);
-        Canvas.SetTop(HintPill, top + 48);
     }
 
     private void PositionPanels()
