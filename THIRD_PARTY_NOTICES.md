@@ -28,11 +28,13 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ```
 
-## PaddleOCR
+## PaddleOCR / RapidOcrNet
 
 Text recognition uses [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)
-(PP-OCRv5 models and the PaddlePaddle inference library, Apache License 2.0) via
-the [PaddleSharp](https://github.com/sdcb/PaddleSharp) .NET bindings (MIT License).
+PP-OCRv5 models (Apache License 2.0), run via
+[RapidOcrNet](https://github.com/BobLd/RapidOcrNet) (Apache License 2.0) on
+[ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT License) with
+[SkiaSharp](https://github.com/mono/SkiaSharp) (MIT License).
 
 ```
 Copyright PaddlePaddle contributors.
@@ -48,8 +50,3 @@ under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 ```
-
-## OpenCvSharp
-
-Image handling for OCR uses [OpenCvSharp](https://github.com/shimat/opencvsharp)
-(Apache License 2.0), which wraps [OpenCV](https://opencv.org) (Apache License 2.0).

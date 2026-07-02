@@ -27,16 +27,25 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- PaddleOCR (PP-OCRv5) backend for Grab text. Models.Local bundles the v5 detection
-         and per-script recognition models; the mkl runtime carries the native inference
-         libraries for win-x64. -->
-    <PackageReference Include="Sdcb.PaddleOCR" Version="3.3.1" />
-    <PackageReference Include="Sdcb.PaddleOCR.Models.Local" Version="3.3.1" />
-    <!-- Models.Local only floats LocalV5 >= 3.0.0, and 3.0.0 lacks the East Slavic model —
-         pin the exact version that embeds it. -->
-    <PackageReference Include="Sdcb.PaddleOCR.Models.LocalV5" Version="3.3.1" />
-    <PackageReference Include="Sdcb.PaddleInference.runtime.win64.mkl" Version="3.3.1.70" />
-    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20260627" />
+    <!-- PP-OCRv5 inference for Grab text, via onnxruntime (no Paddle/OpenCV natives —
+         the whole OCR stack adds ~35 MB). The package ships the v5 detector; the East
+         Slavic recognition model + dict are bundled below. -->
+    <PackageReference Include="RapidOcrNet" Version="2.0.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- East Slavic (uk/ru/be + Latin) PP-OCRv5 recognition model, ONNX. Copied next to
+         the exe; the detector and classifier come from the RapidOcrNet package's models\v5. -->
+    <None Include="models\eslav\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>models\eslav\%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+
+  <!-- The RapidOcrNet package also ships its default Latin recognition model, which the
+       East Slavic model supersedes (it reads Latin too) — keep it out of the installer. -->
+  <Target Name="PruneUnusedOcrModels" AfterTargets="CopyModelsPublish">
+    <Delete Files="$(PublishDir)models\v5\latin_PP-OCRv5_rec_mobile_infer.onnx;$(PublishDir)models\v5\ppocrv5_latin_dict.txt" />
+  </Target>
 
 </Project>
