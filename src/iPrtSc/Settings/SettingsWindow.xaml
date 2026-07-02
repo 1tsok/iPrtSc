@@ -350,7 +350,7 @@
                             <StackPanel>
                                 <TextBlock Style="{StaticResource Label}" Text="Grab text from a capture"/>
                                 <TextBlock Style="{StaticResource Sub}" Margin="0,2,0,12"
-                                           Text="Pick the &quot;Grab text&quot; tool in the capture toolbar, drag a box over the words you want, and press Enter to copy them. All languages are recognized together, so mixed text just works."/>
+                                           Text="Pick the &quot;Grab text&quot; tool in the capture toolbar, drag across the words you want, and press Ctrl+C to copy them. All languages are recognized together, so mixed text just works."/>
 
                                 <TextBlock Style="{StaticResource Label}" Text="Recognized languages" Margin="0,0,0,4"/>
                                 <TextBlock x:Name="OcrLangs" Style="{StaticResource Sub}"/>

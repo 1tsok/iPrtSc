@@ -257,11 +257,6 @@
                             <Path Style="{StaticResource Icon}" Data="M4 7V4h16v3 M9 20h6 M12 4v16"/>
                         </Canvas></Viewbox>
                     </ToggleButton>
-                    <ToggleButton x:Name="ToolOcr" Style="{StaticResource ToolToggle}" Tag="OcrText" ToolTip="Grab text — drag to select, Enter to copy" Click="OnToolClick">
-                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
-                            <Path Style="{StaticResource Icon}" Data="M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2 M7 9h10 M7 13h10 M7 17h6"/>
-                        </Canvas></Viewbox>
-                    </ToggleButton>
                     <ToggleButton x:Name="ToolCounter" Style="{StaticResource ToolToggle}" Tag="Counter" ToolTip="Numbered step" Click="OnToolClick">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
                             <Path Style="{StaticResource Icon}" Data="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M11 9.5 12.5 8.5V16 M10.5 16h4"/>
@@ -270,6 +265,11 @@
                     <ToggleButton x:Name="ToolBlur" Style="{StaticResource ToolToggle}" Tag="Blur" ToolTip="Pixelate area" Click="OnToolClick">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
                             <Path Style="{StaticResource IconFill}" Data="M3.5 5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M10.5 5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M17.5 5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M3.5 12a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M10.5 12a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M17.5 12a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M3.5 19a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M10.5 19a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M17.5 19a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0"/>
+                        </Canvas></Viewbox>
+                    </ToggleButton>
+                    <ToggleButton x:Name="ToolOcr" Style="{StaticResource ToolToggle}" Tag="OcrText" ToolTip="Grab text — drag over words, Ctrl+C to copy" Click="OnToolClick">
+                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
+                            <Path Style="{StaticResource Icon}" Data="M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2 M7 9h10 M7 13h10 M7 17h6"/>
                         </Canvas></Viewbox>
                     </ToggleButton>
 

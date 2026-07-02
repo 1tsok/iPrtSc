@@ -79,9 +79,8 @@ public partial class OverlayWindow : Window
     private readonly List<OcrWordBox> _ocrWords = new();
     private bool _ocrDone;               // OCR has run for the current selection
     private Rect _ocrRect = Rect.Empty;  // the selection the words were built for
-    private bool _ocrSelecting;          // a rubber-band drag is in progress
+    private bool _ocrSelecting;          // a text-selection drag is in progress
     private Point _ocrDragStart;
-    private WpfRect? _ocrBand;           // the rubber-band rectangle visual
     private readonly HashSet<int> _selWords = new();   // indices of currently selected words
     private Brush _ocrIdleFill = Brushes.Transparent;
     private Brush _ocrSelFill = Brushes.Transparent;
@@ -150,7 +149,6 @@ public partial class OverlayWindow : Window
             {
                 _ocrSelecting = true;
                 _ocrDragStart = p;
-                ShowBand(new Rect(p, p));
                 HintPill.Visibility = Visibility.Collapsed;
                 Hit.CaptureMouse();
             }
@@ -191,9 +189,7 @@ public partial class OverlayWindow : Window
 
         if (_ocrSelecting)
         {
-            var rect = new Rect(_ocrDragStart, Clamp(p, _sel));
-            ShowBand(rect);
-            SelectWordsIn(rect);
+            SelectWordRange(_ocrDragStart, Clamp(p, _sel));
             return;
         }
 
@@ -263,7 +259,6 @@ public partial class OverlayWindow : Window
         {
             _ocrSelecting = false;
             Hit.ReleaseMouseCapture();
-            HideBand();
 
             // A click (negligible drag) selects just the word under the pointer.
             if ((e.GetPosition(Root) - _ocrDragStart).Length < 3)
@@ -446,8 +441,11 @@ public partial class OverlayWindow : Window
         }
 
         var menu = new ContextMenu { Style = (Style)FindResource("CtxMenu") };
-        menu.Items.Add(Item("Copy",              "Enter",        hasSel, DoCopy));
-        menu.Items.Add(Item("Copy text",         "Ctrl+Shift+C", hasSel, () => _ = DoCopyText()));
+        // In the Grab-text tool Enter copies the text, not the image, so the shortcuts move.
+        bool ocr = _tool == Tool.OcrText;
+        menu.Items.Add(Item("Copy",              ocr ? "" : "Enter", hasSel, DoCopy));
+        if (ocr)
+            menu.Items.Add(Item("Copy text",     "Ctrl+C", hasSel, () => _ = DoCopyText()));
         menu.Items.Add(Item("Save",              "Ctrl+S",       hasSel, DoSave));
         menu.Items.Add(new Separator { Style = (Style)FindResource("CtxSep") });
         menu.Items.Add(Item("Select full screen","Ctrl+A", true,   SelectFullScreen));
@@ -1229,8 +1227,8 @@ public partial class OverlayWindow : Window
     {
         SelectTool(Tool.OcrText, ToolOcr);
         if (!await EnsureOcrAsync()) { SelectTool(Tool.Select, ToolSelect); return; }
+        // Success needs no instructions — the highlighted words speak for themselves.
         if (_ocrWords.Count == 0) ShowHint("No text found in selection");
-        else ShowHint("Drag to select text    •    Enter to copy");
     }
 
     /// <summary>
@@ -1319,7 +1317,6 @@ public partial class OverlayWindow : Window
         OcrLayer.Children.Clear();
         _ocrWords.Clear();
         _selWords.Clear();
-        _ocrBand = null;   // was removed by the Children.Clear above
         _ocrDone = false;
         _ocrRect = Rect.Empty;
     }
@@ -1332,12 +1329,51 @@ public partial class OverlayWindow : Window
         return -1;
     }
 
-    /// <summary>Selects every word the rubber-band rectangle touches.</summary>
-    private void SelectWordsIn(Rect band)
+    /// <summary>
+    /// Caret ordinal (0.._ocrWords.Count) for a point — its reading-order position between
+    /// words. Words are already ordered line-by-line, left-to-right.
+    /// </summary>
+    private int CaretIndex(Point p)
     {
+        int i = 0;
+        while (i < _ocrWords.Count)
+        {
+            // Vertical band of this line (union of its word boxes).
+            int line = _ocrWords[i].Line, start = i;
+            double top = double.MaxValue, bottom = double.MinValue;
+            while (i < _ocrWords.Count && _ocrWords[i].Line == line)
+            {
+                top = Math.Min(top, _ocrWords[i].Rect.Top);
+                bottom = Math.Max(bottom, _ocrWords[i].Rect.Bottom);
+                i++;
+            }
+            if (p.Y < top) return start;      // above this line → caret before its first word
+            if (p.Y <= bottom)                // inside the band → position within the line
+            {
+                for (int j = start; j < i; j++)
+                    if (p.X < _ocrWords[j].Rect.Left + _ocrWords[j].Rect.Width / 2) return j;
+                return i;                     // past the line's last word
+            }
+        }
+        return _ocrWords.Count;               // below every line
+    }
+
+    /// <summary>
+    /// Selects the words between the anchor and the pointer in reading order — like
+    /// dragging over text in an editor, not by the swept rectangle.
+    /// </summary>
+    private void SelectWordRange(Point anchor, Point cur)
+    {
+        int a = CaretIndex(anchor), c = CaretIndex(cur);
+        int lo = Math.Min(a, c), hi = Math.Max(a, c);   // hi is exclusive
+
+        // A caret landing inside a word still takes the whole word, either direction.
+        int wa = WordAt(anchor), wc = WordAt(cur);
+        if (wa >= 0) { lo = Math.Min(lo, wa); hi = Math.Max(hi, wa + 1); }
+        if (wc >= 0) { lo = Math.Min(lo, wc); hi = Math.Max(hi, wc + 1); }
+
         _selWords.Clear();
-        for (int i = 0; i < _ocrWords.Count; i++)
-            if (_ocrWords[i].Rect.IntersectsWith(band)) _selWords.Add(i);
+        for (int i = lo; i < hi; i++) _selWords.Add(i);
         UpdateOcrHighlights();
     }
 
@@ -1364,32 +1400,6 @@ public partial class OverlayWindow : Window
             line = w.Line;
         }
         return sb.ToString();
-    }
-
-    private void ShowBand(Rect r)
-    {
-        if (_ocrBand == null)
-        {
-            _ocrBand = new WpfRect
-            {
-                Stroke = (Brush)Resources["Accent"],
-                StrokeThickness = 1,
-                StrokeDashArray = new DoubleCollection { 4, 2 },
-                Fill = Brushes.Transparent,
-                IsHitTestVisible = false
-            };
-        }
-        if (!OcrLayer.Children.Contains(_ocrBand)) OcrLayer.Children.Add(_ocrBand);
-        _ocrBand.Visibility = Visibility.Visible;
-        Canvas.SetLeft(_ocrBand, r.X);
-        Canvas.SetTop(_ocrBand, r.Y);
-        _ocrBand.Width = r.Width;
-        _ocrBand.Height = r.Height;
-    }
-
-    private void HideBand()
-    {
-        if (_ocrBand != null) _ocrBand.Visibility = Visibility.Collapsed;
     }
 
     private void DoSave()
@@ -1455,11 +1465,9 @@ public partial class OverlayWindow : Window
         }
 
         bool ctrl = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
-        bool shift = (Keyboard.Modifiers & ModifierKeys.Shift) != 0;
         if (e.Key == Key.Escape) { Close(); e.Handled = true; }
         // In the Grab-text tool, Enter copies the highlighted text instead of the image.
         else if (e.Key == Key.Enter) { if (_tool == Tool.OcrText) _ = DoCopyText(); else DoCopy(); e.Handled = true; }
-        else if (ctrl && shift && e.Key == Key.C) { _ = DoCopyText(); e.Handled = true; }
         else if (ctrl && e.Key == Key.C && _tool == Tool.OcrText) { _ = DoCopyText(); e.Handled = true; }
         else if (ctrl && e.Key == Key.S) { DoSave(); e.Handled = true; }
         else if (ctrl && e.Key == Key.Z) { Undo(); e.Handled = true; }
