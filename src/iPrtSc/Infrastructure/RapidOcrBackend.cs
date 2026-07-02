@@ -11,10 +11,10 @@ namespace iPrtSc;
 
 /// <summary>
 /// PP-OCRv5 backend running on onnxruntime via RapidOcrNet — no Paddle or OpenCV native
-/// libraries, the whole OCR stack (runtime + models) adds ~35 MB. The East Slavic
-/// recognition model reads Ukrainian, Russian and Belarusian alongside Latin letters and
-/// digits in a single pass, so mixed text — e.g. Ukrainian UI with English words — just
-/// works. The detector finds text on arbitrary (textured, coloured) backgrounds.
+/// libraries, the whole OCR stack (runtime + models) adds ~35 MB. The recognition model
+/// reads Ukrainian and Cyrillic alongside Latin letters and digits in a single pass, so
+/// mixed text — e.g. Ukrainian UI with English words — just works. The detector finds
+/// text on arbitrary (textured, coloured) backgrounds.
 /// </summary>
 internal static class RapidOcrBackend
 {

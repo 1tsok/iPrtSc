@@ -22,8 +22,8 @@ area, annotate, then copy or save — all from the system tray.
 - **Colour palette** — a 30-colour grid to recolour any annotation.
 - **Copy or save** — quick-save or a save dialog, PNG or JPEG.
 - **Grab text (OCR)** — recognise text in the selection, drag to highlight the words
-  you want, and copy them. Powered by PaddleOCR (English, Ukrainian and other
-  Cyrillic scripts out of the box).
+  you want, and copy them. English and Ukrainian out of the box, mixed text
+  supported; fully on-device (PP-OCRv5 on ONNX Runtime).
 - **Screenshot history** with thumbnails in the tray, an optional hotkey, and
   automatic cleanup.
 - **Update notifications** in the tray when a new version is available.
