@@ -23,7 +23,18 @@ AppId={{8B4A7C2E-1F3D-4A6B-9C8E-2D5F7A0B1C3E}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL=https://github.com/1tsok/iPrtSc
+AppSupportURL=https://github.com/1tsok/iPrtSc/issues
+AppUpdatesURL=https://github.com/1tsok/iPrtSc/releases
 VersionInfoVersion={#MyAppVersion}
+
+; Self-contained .NET 8 supports Windows 10 1607+; refuse older systems upfront.
+MinVersion=10.0.14393
+
+; A running instance is closed by our own taskkill in [Code] (the app lives in
+; the tray with no closable window, so Restart Manager's graceful close never
+; works) — skip the confusing "files in use" wizard page entirely.
+CloseApplications=no
 
 ; Per-machine install (writes the uninstall entry to HKLM) so it reliably shows
 ; in Windows 11 Settings > Installed apps. Costs a single UAC prompt at install.
@@ -72,14 +83,24 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-; Offer to launch right after install.
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+; Offer to launch right after install. runasoriginaluser: setup is elevated,
+; but the app must run as the logged-in user (per-user autostart, clipboard,
+; drag&drop all break under an admin token).
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [CustomMessages]
 en.DeleteSettings=Do you also want to delete your iPrtSc settings and screenshot history?
 uk.DeleteSettings=Видалити також налаштування та історію знімків iPrtSc?
 
 [Code]
+const
+  // Must match the single-instance mutex created in App.xaml.cs.
+  AppMutexName = 'iPrtSc.SingleInstance';
+
+var
+  // Set in PrepareToInstall; drives the post-upgrade relaunch.
+  AppWasRunning: Boolean;
+
 // True when the chosen install folder already contains a previous iPrtSc —
 // gates [InstallDelete] so we never wipe an unrelated directory.
 function PreviousInstallExists: Boolean;
@@ -87,12 +108,89 @@ begin
   Result := FileExists(ExpandConstant('{app}\{#MyAppExeName}'));
 end;
 
-// On uninstall, ask before removing %APPDATA%\iPrtSc. Defaults to "No"
-// (keep settings), which is also the auto-answer for silent uninstalls.
-procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+function AppIsRunning: Boolean;
 begin
+  Result := CheckForMutexes(AppMutexName);
+end;
+
+// Kill a running iPrtSc so its files aren't locked during install/uninstall.
+// The app lives in the tray with no visible window, so a graceful WM_CLOSE
+// wouldn't reach it — force-terminate, then wait for the single-instance
+// mutex to vanish (process really gone) plus a grace period for file handles.
+procedure KillRunningApp;
+var
+  ResultCode, I: Integer;
+begin
+  if not AppIsRunning then Exit;
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#MyAppExeName}', '',
+       SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  for I := 1 to 10 do
+  begin
+    if not AppIsRunning then Break;
+    Sleep(300);
+  end;
+  Sleep(300);
+end;
+
+// Runs after the user commits to installing, right before file operations.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  AppWasRunning := AppIsRunning;
+  KillRunningApp;
+  Result := '';
+end;
+
+// After an upgrade, restore the pre-install state: if the app was running
+// when setup started, bring it back — as the logged-in user, not admin.
+// ExecAsOriginalUser needs the un-elevated setup stub (normal UAC flow); when
+// setup was launched already elevated it can fail silently, so fall back to
+// a plain Exec rather than leave the app closed.
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+begin
+  if (CurStep = ssPostInstall) and AppWasRunning then
+    if not ExecAsOriginalUser(ExpandConstant('{app}\{#MyAppExeName}'), '', '',
+                              SW_SHOWNORMAL, ewNoWait, ResultCode) then
+      Exec(ExpandConstant('{app}\{#MyAppExeName}'), '', '',
+           SW_SHOWNORMAL, ewNoWait, ResultCode);
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  AppDir: String;
+  I: Integer;
+begin
+  // Close the app only AFTER the user confirms the uninstall (an
+  // InitializeUninstall kill would fire even if they answer "No").
+  if CurUninstallStep = usUninstall then
+    KillRunningApp;
+
   if CurUninstallStep = usPostUninstall then
-    if MsgBox(CustomMessage('DeleteSettings'), mbConfirmation,
-              MB_YESNO or MB_DEFBUTTON2) = IDYES then
-      DelTree(ExpandConstant('{userappdata}\iPrtSc'), True, True, True);
+  begin
+    // Drop the per-user autostart value so the next sign-in doesn't try to
+    // launch a deleted exe. Written by the app (AutoStart.cs), not setup,
+    // so the uninstaller has to remove it explicitly.
+    RegDeleteValue(HKEY_CURRENT_USER,
+      'Software\Microsoft\Windows\CurrentVersion\Run', '{#MyAppName}');
+
+    // Sweep away {app} if it survived — after taskkill /F the freed file
+    // handles can lag (NTFS delayed delete, antivirus scan), so the built-in
+    // directory removal races and loses. Retry for a few seconds.
+    AppDir := ExpandConstant('{app}');
+    for I := 1 to 10 do
+    begin
+      if not DirExists(AppDir) then Break;
+      DelTree(AppDir, True, True, True);
+      if not DirExists(AppDir) then Break;
+      Sleep(300);
+    end;
+
+    // Ask before removing %APPDATA%\iPrtSc. Defaults to "No" (keep settings);
+    // silent uninstalls never prompt and keep the settings.
+    if not UninstallSilent then
+      if MsgBox(CustomMessage('DeleteSettings'), mbConfirmation,
+                MB_YESNO or MB_DEFBUTTON2) = IDYES then
+        DelTree(ExpandConstant('{userappdata}\iPrtSc'), True, True, True);
+  end;
 end;

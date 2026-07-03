@@ -14,7 +14,7 @@
     <LangVersion>latest</LangVersion>
     <!-- Pixel loops in ScreenCapture write through raw LockBits pointers. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <!-- WPF takes DPI awareness from app.manifest; silence the WinForms-only analyzer. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
