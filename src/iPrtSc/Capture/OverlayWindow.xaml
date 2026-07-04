@@ -259,7 +259,7 @@
                     </ToggleButton>
                     <ToggleButton x:Name="ToolCounter" Style="{StaticResource ToolToggle}" Tag="Counter" ToolTip="Numbered step" Click="OnToolClick">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
-                            <Path Style="{StaticResource Icon}" Data="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M11 9.5 12.5 8.5V16 M10.5 16h4"/>
+                            <Path Style="{StaticResource Icon}" Data="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M11 9.5 12.5 8.5V16"/>
                         </Canvas></Viewbox>
                     </ToggleButton>
                     <ToggleButton x:Name="ToolBlur" Style="{StaticResource ToolToggle}" Tag="Blur" ToolTip="Pixelate area" Click="OnToolClick">
