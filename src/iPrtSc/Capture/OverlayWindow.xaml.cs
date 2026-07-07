@@ -855,19 +855,19 @@ public partial class OverlayWindow : Window
             Cursor = Cursors.Hand,
             Background = Brushes.Transparent
         };
-        _stampRotHandle.Children.Add(new System.Windows.Shapes.Ellipse
-        {
-            Fill = new SolidColorBrush(Color.FromRgb(0x2B, 0x2B, 0x2B)),
-            Stroke = Brushes.White,
-            StrokeThickness = 1.5
-        });
+        var rotIdle = new SolidColorBrush(Color.FromRgb(0x2B, 0x2B, 0x2B));
+        var rotHover = new SolidColorBrush(Color.FromRgb(0x47, 0x47, 0x47));
+        var rotBg = new System.Windows.Shapes.Ellipse { Fill = rotIdle };
+        _stampRotHandle.Children.Add(rotBg);
+        _stampRotHandle.MouseEnter += (_, _) => rotBg.Fill = rotHover;
+        _stampRotHandle.MouseLeave += (_, _) => rotBg.Fill = rotIdle;
         _stampRotHandle.Children.Add(new System.Windows.Shapes.Path
         {
             Width = 15,
             Height = 15,
             Stretch = Stretch.Uniform,
             Stroke = Brushes.White,
-            StrokeThickness = 2.4,
+            StrokeThickness = 1.6,
             StrokeStartLineCap = PenLineCap.Round,
             StrokeEndLineCap = PenLineCap.Round,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -1079,7 +1079,8 @@ public partial class OverlayWindow : Window
                 Tool.Text => Cursors.IBeam,
                 Tool.OcrText => Cursors.Arrow,
                 Tool.Select => Cursors.SizeAll,   // drag the whole selection to reposition it
-                Tool.Move => Cursors.SizeAll,
+                // Move shows the grab cursor only over something it can actually grab.
+                Tool.Move => MovableAt(p) ? Cursors.SizeAll : Cursors.Arrow,
                 // Over a stamp the click will grab it, elsewhere it will place a new one.
                 Tool.Stamp when _editStamp?.Contains(p) == true
                              || _stamps.Any(s => s.Contains(p)) => Cursors.SizeAll,
@@ -1114,6 +1115,14 @@ public partial class OverlayWindow : Window
     /// starts a move drag. Clicking inside the already-active object's rotated bounds
     /// re-grabs it even where its strokes are thin; clicking empty space deselects.
     /// </summary>
+    /// <summary>True when the Move tool has something to grab under the pointer.</summary>
+    private bool MovableAt(Point p)
+    {
+        if (_editTarget?.Contains(p) == true) return true;
+        var result = VisualTreeHelper.HitTest(AnnotCanvas, p);
+        return result?.VisualHit is DependencyObject hit && TopLevelChild(hit) is UIElement;
+    }
+
     private void TryBeginMove(Point p)
     {
         var target = _editTarget?.Contains(p) == true ? _editTarget : null;
