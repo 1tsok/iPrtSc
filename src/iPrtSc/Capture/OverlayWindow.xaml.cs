@@ -202,6 +202,11 @@ public partial class OverlayWindow : Window
             return;
         }
 
+        // Only the Select tool may redraw the region: with a drawing tool active a stray
+        // click on the dimmed backdrop would silently wipe every annotation. (When no
+        // region exists at all there is nothing to lose, so any tool may start one.)
+        if (_tool != Tool.Select && !_sel.IsEmpty) return;
+
         // Start a new selection (and discard any existing annotations).
         ClearAnnotations();
         _dragging = true;

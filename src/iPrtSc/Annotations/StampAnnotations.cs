@@ -30,6 +30,7 @@ public static class StampCatalog
         Rect("approved",     "APPROVED",     "#2E7D32", 58, 25),
         Rect("rejected",     "REJECTED",     "#C62828", 58, 25),
         Rect("draft",        "DRAFT",        "#5F6368", 58, 25),
+        Rect("example",      "EXAMPLE",      "#283593", 58, 25),
         Rect("like",         "LIKE",         "#1565C0", 58, 25, "thumb"),
         Rect("paid",         "PAID",         "#4527A0", 64, 31),
         Rect("topsecret",    "TOP SECRET",   "#C62828", 54, 23),
@@ -61,6 +62,7 @@ public static class StampCatalog
         ["#2E7D32"] = "#81C784",   // green
         ["#C62828"] = "#E57373",   // red
         ["#5F6368"] = "#BDC1C6",   // grey
+        ["#283593"] = "#9FA8DA",   // indigo
         ["#1565C0"] = "#64B5F6",   // blue
         ["#4527A0"] = "#B39DDB",   // deep purple
         ["#37474F"] = "#90A4AE",   // blue grey
