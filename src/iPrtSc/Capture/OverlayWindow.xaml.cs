@@ -17,7 +17,7 @@ namespace iPrtSc;
 
 public partial class OverlayWindow : Window
 {
-    private enum Tool { Select, Pen, Marker, Line, Arrow, Rect, Ellipse, Text, OcrText, Counter, Blur, Move }
+    private enum Tool { Select, Pen, Marker, Line, Arrow, Rect, Ellipse, Text, OcrText, Counter, Stamp, Blur, Move }
 
     // The highlighter draws much wider than the nominal brush thickness.
     private const double MarkerScale = 3.0;
@@ -57,16 +57,27 @@ public partial class OverlayWindow : Window
     private readonly Stack<UndoItem> _undo = new();
     private readonly Stack<UndoItem> _redo = new();
 
-    // Move tool state
-    private bool _moving;
-    private TranslateTransform? _moveTransform;
-    private Point _moveStart;
-    private double _moveOrigX, _moveOrigY;
+    // Object editing (Move tool + Stamp tool): the object currently showing the
+    // move/scale/rotate handles, and its state at gesture start for undo.
+    private IEditTarget? _editTarget;
+    private (Point C, double S, double A) _gestureOrig;
 
     // Whole-selection drag (Select tool, dragging inside the selected region)
     private bool _movingSel;
     private Point _selMoveStart;
     private Rect _selMoveOrig;
+
+    // Stamp tool: placed stamps stay editable (move/scale/rotate) while the tool is active.
+    private StampDef _stampDef = StampCatalog.All[0];
+    private enum StampInkMode { ForLight, ForDark, Auto }
+    private StampInkMode _stampInkMode = StampInkMode.Auto;   // which ink new stamps get
+    private readonly List<StampAnnotation> _stamps = new();
+    private StampAnnotation? _editStamp;                   // stamp currently showing handles
+    private readonly List<System.Windows.Shapes.Ellipse> _stampCorners = new();
+    private Grid? _stampRotHandle;
+    private bool _stampScaling, _stampRotating, _stampMoving;
+    private double _stampRotOffset;    // stamp angle minus pointer angle at grab
+    private Vector _stampMoveOffset;   // pointer minus stamp center at grab
 
     // OCR text grab: recognized words rendered as selectable boxes over the photo.
     private sealed class OcrWordBox
@@ -122,6 +133,7 @@ public partial class OverlayWindow : Window
         UpdateDim(Rect.Empty);
         BuildColorSwatches();
         UpdateShapesIcon();
+        BuildStampPalette();
         BuildHandles();
         ToolSelect.IsChecked = true;
         UpdateUndoRedo();
@@ -138,7 +150,7 @@ public partial class OverlayWindow : Window
         if (_tool == Tool.Move)
         {
             TryBeginMove(p);
-            return; // Move never re-selects or clears
+            return; // Move never re-selects or clears the region
         }
 
         bool insideSelection = !_sel.IsEmpty && _sel.Contains(p);
@@ -153,6 +165,24 @@ public partial class OverlayWindow : Window
                 Hit.CaptureMouse();
             }
             return;   // never starts a new region or annotation
+        }
+
+        // Stamp tool: a click on an existing stamp re-activates it for editing and starts
+        // a move drag; a click on empty space places a new stamp.
+        if (_tool == Tool.Stamp && insideSelection)
+        {
+            var hitStamp = _editStamp != null && _editStamp.Contains(p)
+                ? _editStamp
+                : Enumerable.Reverse(_stamps).FirstOrDefault(s => s.Contains(p));
+            if (hitStamp != null)
+            {
+                ActivateStampEdit(hitStamp);
+                BeginGesture();
+                _stampMoving = true;
+                _stampMoveOffset = p - hitStamp.Center;
+                Hit.CaptureMouse();
+                return;
+            }
         }
 
         if (_tool != Tool.Select && insideSelection)
@@ -193,14 +223,6 @@ public partial class OverlayWindow : Window
             return;
         }
 
-        if (_moving && _moveTransform != null)
-        {
-            var v = p - _moveStart;
-            _moveTransform.X = _moveOrigX + v.X;
-            _moveTransform.Y = _moveOrigY + v.Y;
-            return;
-        }
-
         if (_movingSel)
         {
             var v = p - _selMoveStart;
@@ -209,6 +231,13 @@ public partial class OverlayWindow : Window
             _sel = new Rect(nx, ny, _selMoveOrig.Width, _selMoveOrig.Height);
             UpdateSelection();
             PositionPanels();
+            return;
+        }
+
+        if (_stampMoving && _editTarget != null)
+        {
+            _editTarget.Center = Clamp(p - _stampMoveOffset, _sel);
+            PositionStampHandles();
             return;
         }
 
@@ -273,27 +302,18 @@ public partial class OverlayWindow : Window
             return;
         }
 
-        if (_moving)
-        {
-            _moving = false;
-            Hit.ReleaseMouseCapture();
-
-            if (_moveTransform is { } tt)
-            {
-                double ox = _moveOrigX, oy = _moveOrigY, nx = tt.X, ny = tt.Y;
-                if (ox != nx || oy != ny)
-                    PushUndoItem(
-                        undo: () => { tt.X = ox; tt.Y = oy; },
-                        redo: () => { tt.X = nx; tt.Y = ny; });
-            }
-            _moveTransform = null;
-            return;
-        }
-
         if (_movingSel)
         {
             _movingSel = false;
             Hit.ReleaseMouseCapture();
+            return;
+        }
+
+        if (_stampMoving)
+        {
+            _stampMoving = false;
+            Hit.ReleaseMouseCapture();
+            EndGesture();
             return;
         }
 
@@ -335,6 +355,9 @@ public partial class OverlayWindow : Window
                 return;
             case Tool.Counter:
                 PlaceCounter(start, brush);
+                return;
+            case Tool.Stamp:
+                PlaceStamp(start);
                 return;
             case Tool.Pen:
                 var pen = new FreehandAnnotation(brush, _thickness);
@@ -393,6 +416,28 @@ public partial class OverlayWindow : Window
         Canvas.SetTop(ann.Element, p.Y - d / 2);
         AnnotCanvas.Children.Add(ann.Element);
         PushAdd(ann);
+    }
+
+    private void PlaceStamp(Point p)
+    {
+        var stamp = new StampAnnotation(_stampDef, _stampInkMode == StampInkMode.ForDark)
+        {
+            Angle = -5,
+            AutoInk = _stampInkMode == StampInkMode.Auto
+        };
+        stamp.Center = p;
+        ResampleAutoInk(stamp);
+        AnnotCanvas.Children.Add(stamp.Element);
+        _stamps.Add(stamp);
+        PushUndoItem(
+            undo: () =>
+            {
+                AnnotCanvas.Children.Remove(stamp.Element);
+                _stamps.Remove(stamp);
+                if (ReferenceEquals(_editStamp, stamp)) DeactivateStampEdit();
+            },
+            redo: () => { AnnotCanvas.Children.Add(stamp.Element); _stamps.Add(stamp); });
+        ActivateStampEdit(stamp);
     }
 
     private sealed class UndoItem
@@ -528,6 +573,8 @@ public partial class OverlayWindow : Window
         _redo.Clear();
         _counter = 1;
         _current = null;
+        _stamps.Clear();
+        DeactivateStampEdit();
         ClearOcr();   // recognized words belong to the old selection — drop them
         UpdateUndoRedo();
     }
@@ -549,55 +596,24 @@ public partial class OverlayWindow : Window
             tb.IsChecked = ReferenceEquals(tb, checkedBtn);
 
         OcrLayer.Visibility = tool == Tool.OcrText ? Visibility.Visible : Visibility.Collapsed;
+        // Move keeps whatever is selected; Stamp keeps only stamps; other tools drop the target.
+        if (tool == Tool.Stamp && _editStamp == null) SetEditTarget(null);
+        else if (tool is not (Tool.Stamp or Tool.Move)) SetEditTarget(null);
+        else PositionStampHandles();   // re-show handles that were hidden by the previous tool
 
         HideFlyouts();
         UpdateCursor(Mouse.GetPosition(Root));
         ShowHandles();
     }
 
-    // Shapes group: a short click reuses the last-picked shape; press-and-hold (or right-click)
-    // opens the picker. We take over the toggle's mouse handling so the click vs. hold split is ours.
-    private System.Windows.Threading.DispatcherTimer? _shapesHold;
-    private bool _shapesHeld;
-
-    private void OnShapesDown(object sender, MouseButtonEventArgs e)
+    // Shapes group: a click opens the picker right away; the tool activates on shape pick.
+    private void OnShapesClick(object sender, RoutedEventArgs e)
     {
-        _shapesHeld = false;
-        if (_shapesHold == null)
-        {
-            _shapesHold = new System.Windows.Threading.DispatcherTimer
-                { Interval = TimeSpan.FromMilliseconds(350) };
-            _shapesHold.Tick += OnShapesHoldTick;
-        }
-        _shapesHold.Start();
-        e.Handled = true;   // suppress the default toggle so we drive activation ourselves
-    }
-
-    private void OnShapesHoldTick(object? sender, EventArgs e)
-    {
-        _shapesHold?.Stop();
-        _shapesHeld = true;
-        OpenShapesPicker();
-    }
-
-    private void OnShapesUp(object sender, MouseButtonEventArgs e)
-    {
-        _shapesHold?.Stop();
-        if (!_shapesHeld) SelectTool(_shape, ShapesGroup);   // short click → reuse last shape
-        e.Handled = true;
-    }
-
-    private void OnShapesRightUp(object sender, MouseButtonEventArgs e)
-    {
-        _shapesHold?.Stop();
-        OpenShapesPicker();
-        e.Handled = true;   // don't fall through to the canvas context menu
-    }
-
-    private void OpenShapesPicker()
-    {
-        HideColorFlyout();
-        ShowShapesFlyout();
+        bool wasOpen = ShapesFlyout.Visibility == Visibility.Visible;
+        HideFlyouts();
+        if (!wasOpen) ShowShapesFlyout();
+        // The click flipped the toggle; show the actual tool state instead.
+        ShapesGroup.IsChecked = _tool is Tool.Line or Tool.Arrow or Tool.Rect or Tool.Ellipse;
     }
 
     private void OnShapePick(object sender, RoutedEventArgs e)
@@ -607,25 +623,387 @@ public partial class OverlayWindow : Window
         SelectTool(_shape, ShapesGroup);   // activates the shape and closes the flyout
     }
 
+    // ===== Stamp tool: group button, palette, edit handles =====
+    // Same interaction as the shapes group: a click opens the palette right away.
+    private void OnStampsClick(object sender, RoutedEventArgs e)
+    {
+        bool wasOpen = StampFlyout.Visibility == Visibility.Visible;
+        HideFlyouts();
+        if (!wasOpen) ShowStampFlyout();
+        StampGroup.IsChecked = _tool == Tool.Stamp;
+    }
+
+    private void ShowStampFlyout()
+    {
+        StampFlyout.Visibility = Visibility.Visible;
+        StampFlyout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double fw = StampFlyout.DesiredSize.Width, fh = StampFlyout.DesiredSize.Height;
+
+        var anchor = StampGroup.TransformToAncestor(Root).Transform(new Point(0, 0));
+        double x = anchor.X - fw - 6;
+        if (x < 8) x = anchor.X + StampGroup.ActualWidth + 6;
+        double y = anchor.Y + StampGroup.ActualHeight / 2 - fh / 2;
+        y = Math.Max(8, Math.Min(y, Root.ActualHeight - fh - 8));
+
+        Canvas.SetLeft(StampFlyout, x);
+        Canvas.SetTop(StampFlyout, y);
+    }
+
+    private void HideStampFlyout() => StampFlyout.Visibility = Visibility.Collapsed;
+
+    /// <summary>
+    /// Fills the palette with chips previewing every stamp on its target background:
+    /// light "paper" for deep inks, dark "slate" for bright ones.
+    /// </summary>
+    private void BuildStampPalette()
+    {
+        // Auto previews on paper with deep ink — the placed stamp adapts on its own.
+        bool bright = _stampInkMode == StampInkMode.ForDark;
+        var chipBg = new SolidColorBrush(bright
+            ? Color.FromRgb(0x1B, 0x1D, 0x20)
+            : Color.FromRgb(0xF8, 0xF6, 0xF1));
+        StampGrid.Children.Clear();
+        foreach (var def in StampCatalog.All)
+        {
+            var chip = new Border
+            {
+                Width = 112,
+                Height = 44,
+                Margin = new Thickness(3),
+                CornerRadius = new CornerRadius(6),
+                Background = chipBg,
+                BorderBrush = (Brush)Resources["Accent"],
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(8, 5, 8, 5),
+                Cursor = Cursors.Hand,
+                Tag = def,
+                ToolTip = def.Text,
+                Child = new Viewbox { Stretch = Stretch.Uniform, Child = StampCatalog.BuildVisual(def, bright) }
+            };
+            chip.MouseLeftButtonDown += OnStampPick;
+            StampGrid.Children.Add(chip);
+        }
+        RefreshStampSelection();
+        RefreshInkModeSegments();
+    }
+
+    /// <summary>Ink-mode segment click: rebuild the palette in the chosen mode.</summary>
+    private void OnInkModePick(object sender, MouseButtonEventArgs e)
+    {
+        _stampInkMode = ReferenceEquals(sender, InkModeDark) ? StampInkMode.ForDark
+                      : ReferenceEquals(sender, InkModeAuto) ? StampInkMode.Auto
+                      : StampInkMode.ForLight;
+        BuildStampPalette();
+        e.Handled = true;
+    }
+
+    private void RefreshInkModeSegments()
+    {
+        InkModeLight.BorderThickness = new Thickness(_stampInkMode == StampInkMode.ForLight ? 1.5 : 0);
+        InkModeDark.BorderThickness = new Thickness(_stampInkMode == StampInkMode.ForDark ? 1.5 : 0);
+        InkModeAuto.BorderThickness = new Thickness(_stampInkMode == StampInkMode.Auto ? 1.5 : 0);
+    }
+
+    // ===== Auto ink: pick deep/bright from the background luminance under the stamp =====
+
+    private byte[]? _lumMap;                               // downscaled Gray8 copy of the screenshot
+    private int _lumW, _lumH;
+    private const int LumShift = 3;                        // luminance map at 1/8 resolution
+
+    private void EnsureLumMap()
+    {
+        if (_lumMap != null) return;
+        double f = 1.0 / (1 << LumShift);
+        var gray = new FormatConvertedBitmap(
+            new TransformedBitmap(_src, new ScaleTransform(f, f)), PixelFormats.Gray8, null, 0);
+        _lumW = gray.PixelWidth;
+        _lumH = gray.PixelHeight;
+        _lumMap = new byte[_lumW * _lumH];
+        gray.CopyPixels(_lumMap, _lumW, 0);
+    }
+
+    /// <summary>Mean luminance (0–255) under the stamp's unrotated bounding box.</summary>
+    private double LumUnder(StampAnnotation s)
+    {
+        EnsureLumMap();
+        var c = s.Center;
+        var h = s.HalfSize;
+        double f = _scale / (1 << LumShift);
+        int x0 = Math.Clamp((int)((c.X - h.X) * f), 0, _lumW - 1);
+        int x1 = Math.Clamp((int)((c.X + h.X) * f), x0, _lumW - 1);
+        int y0 = Math.Clamp((int)((c.Y - h.Y) * f), 0, _lumH - 1);
+        int y1 = Math.Clamp((int)((c.Y + h.Y) * f), y0, _lumH - 1);
+        long sum = 0;
+        for (int y = y0; y <= y1; y++)
+            for (int x = x0; x <= x1; x++) sum += _lumMap![y * _lumW + x];
+        return (double)sum / ((x1 - x0 + 1) * (y1 - y0 + 1));
+    }
+
+    /// <summary>
+    /// Live re-pick for Auto stamps. The hysteresis band (128–150) keeps the ink from
+    /// flickering while the stamp is dragged across a background near the threshold.
+    /// </summary>
+    private void ResampleAutoInk(StampAnnotation s)
+    {
+        if (!s.AutoInk) return;
+        double lum = LumUnder(s);
+        if (s.BrightInk) { if (lum > 150) s.SetBrightInk(false); }
+        else if (lum < 128) s.SetBrightInk(true);
+    }
+
+    private void OnStampPick(object sender, MouseButtonEventArgs e)
+    {
+        _stampDef = (StampDef)((Border)sender).Tag;
+        RefreshStampSelection();
+        SelectTool(Tool.Stamp, StampGroup);   // activates the tool and closes the flyout
+        e.Handled = true;
+    }
+
+    private void RefreshStampSelection()
+    {
+        foreach (var chip in StampGrid.Children.OfType<Border>())
+            chip.BorderThickness = new Thickness(ReferenceEquals(chip.Tag, _stampDef) ? 2 : 0);
+    }
+
+    private void ActivateStampEdit(StampAnnotation stamp) => SetEditTarget(stamp);
+
+    private void DeactivateStampEdit() => SetEditTarget(null);
+
+    /// <summary>Makes an object the active edit target (or clears it) and syncs the handles.</summary>
+    private void SetEditTarget(IEditTarget? target)
+    {
+        _editTarget = target;
+        _editStamp = target as StampAnnotation;
+        PositionStampHandles();
+    }
+
+    private static UIElement? TargetElement(IEditTarget t) => t switch
+    {
+        StampAnnotation sa => sa.Element,
+        ElementEditTarget ee => ee.Element,
+        _ => null
+    };
+
+    /// <summary>Del/Backspace: removes the selected object from the canvas (undoable).</summary>
+    private void DeleteEditTarget()
+    {
+        var target = _editTarget;
+        if (target == null || TargetElement(target) is not UIElement el) return;
+
+        var stamp = target as StampAnnotation;
+        void Remove()
+        {
+            AnnotCanvas.Children.Remove(el);
+            if (stamp != null) _stamps.Remove(stamp);
+            if (_editTarget != null && ReferenceEquals(TargetElement(_editTarget), el))
+                SetEditTarget(null);
+        }
+        Remove();
+        PushUndoItem(
+            undo: () => { AnnotCanvas.Children.Add(el); if (stamp != null) _stamps.Add(stamp); },
+            redo: Remove);
+    }
+
+    /// <summary>Snapshots the target's placement so the gesture can be undone as one step.</summary>
+    private void BeginGesture()
+    {
+        var t = _editTarget;
+        if (t != null) _gestureOrig = (t.Center, t.Scale, t.Angle);
+    }
+
+    private void EndGesture()
+    {
+        var t = _editTarget;
+        if (t == null) return;
+        var (c0, s0, a0) = _gestureOrig;
+        var (c1, s1, a1) = (t.Center, t.Scale, t.Angle);
+        if (c0 == c1 && s0 == s1 && a0 == a1) return;
+        PushUndoItem(
+            undo: () => { t.Center = c0; t.Scale = s0; t.Angle = a0; PositionStampHandles(); },
+            redo: () => { t.Center = c1; t.Scale = s1; t.Angle = a1; PositionStampHandles(); });
+    }
+
+    private void EnsureStampHandles()
+    {
+        if (_stampCorners.Count > 0) return;
+        var accent = SelBorder.Stroke;
+
+        for (int i = 0; i < 4; i++)
+        {
+            var h = new System.Windows.Shapes.Ellipse
+            {
+                Width = 12,
+                Height = 12,
+                Fill = Brushes.White,
+                Stroke = accent,
+                StrokeThickness = 1.5,
+                Visibility = Visibility.Collapsed,
+                Cursor = i % 2 == 0 ? Cursors.SizeNWSE : Cursors.SizeNESW
+            };
+            h.MouseLeftButtonDown += OnStampCornerDown;
+            h.MouseMove += OnStampCornerMove;
+            h.MouseLeftButtonUp += OnStampCornerUp;
+            HandleCanvas.Children.Add(h);
+            _stampCorners.Add(h);
+        }
+
+        _stampRotHandle = new Grid
+        {
+            Width = 30,
+            Height = 30,
+            Visibility = Visibility.Collapsed,
+            Cursor = Cursors.Hand,
+            Background = Brushes.Transparent
+        };
+        _stampRotHandle.Children.Add(new System.Windows.Shapes.Ellipse
+        {
+            Fill = new SolidColorBrush(Color.FromRgb(0x2B, 0x2B, 0x2B)),
+            Stroke = Brushes.White,
+            StrokeThickness = 1.5
+        });
+        _stampRotHandle.Children.Add(new System.Windows.Shapes.Path
+        {
+            Width = 15,
+            Height = 15,
+            Stretch = Stretch.Uniform,
+            Stroke = Brushes.White,
+            StrokeThickness = 2.4,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Data = Geometry.Parse("M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.4 2.6L3 8 M3 3v5h5")
+        });
+        _stampRotHandle.MouseLeftButtonDown += OnStampRotateDown;
+        _stampRotHandle.MouseMove += OnStampRotateMove;
+        _stampRotHandle.MouseLeftButtonUp += OnStampRotateUp;
+        HandleCanvas.Children.Add(_stampRotHandle);
+    }
+
+    /// <summary>
+    /// Places the four corner grips on the stamp's rotated corners and the rotate grip
+    /// above its top edge. Handles live on HandleCanvas (over the mouse surface), so
+    /// they receive mouse input directly and are never part of the exported image.
+    /// </summary>
+    private void PositionStampHandles()
+    {
+        // Every move/scale/rotate/undo path funnels through here — the one spot where
+        // an Auto stamp re-checks the background it now sits on.
+        if (_editTarget is StampAnnotation sa) ResampleAutoInk(sa);
+
+        bool show = _editTarget != null && _tool is Tool.Stamp or Tool.Move;
+        if (!show)
+        {
+            foreach (var h in _stampCorners) h.Visibility = Visibility.Collapsed;
+            if (_stampRotHandle != null) _stampRotHandle.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        EnsureStampHandles();
+        var c = _editTarget!.Center;
+        var half = _editTarget.HalfSize;
+        double a = _editTarget.Angle * Math.PI / 180;
+        double cos = Math.Cos(a), sin = Math.Sin(a);
+        Point At(double lx, double ly) => new(c.X + lx * cos - ly * sin, c.Y + lx * sin + ly * cos);
+
+        Point[] corners = { At(-half.X, -half.Y), At(half.X, -half.Y), At(half.X, half.Y), At(-half.X, half.Y) };
+        for (int i = 0; i < 4; i++)
+        {
+            Canvas.SetLeft(_stampCorners[i], corners[i].X - 6);
+            Canvas.SetTop(_stampCorners[i], corners[i].Y - 6);
+            _stampCorners[i].Visibility = Visibility.Visible;
+        }
+
+        var rp = At(0, -half.Y - 30);
+        Canvas.SetLeft(_stampRotHandle!, rp.X - 15);
+        Canvas.SetTop(_stampRotHandle!, rp.Y - 15);
+        _stampRotHandle!.Visibility = Visibility.Visible;
+    }
+
+    private void OnStampCornerDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_editTarget == null) return;
+        BeginGesture();
+        _stampScaling = true;
+        ((UIElement)sender).CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void OnStampCornerMove(object sender, MouseEventArgs e)
+    {
+        if (!_stampScaling || _editTarget == null) return;
+        // Uniform scale from the center: the grabbed corner follows the pointer's distance.
+        double dist = (e.GetPosition(Root) - _editTarget.Center).Length;
+        _editTarget.Scale = Math.Clamp(dist / _editTarget.NaturalHalfDiag, 0.3, 5);
+        PositionStampHandles();
+        e.Handled = true;
+    }
+
+    private void OnStampCornerUp(object sender, MouseButtonEventArgs e)
+    {
+        _stampScaling = false;
+        ((UIElement)sender).ReleaseMouseCapture();
+        EndGesture();
+        e.Handled = true;
+    }
+
+    private void OnStampRotateDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_editTarget == null) return;
+        BeginGesture();
+        _stampRotating = true;
+        _stampRotOffset = _editTarget.Angle - PointerAngle(e.GetPosition(Root));
+        ((UIElement)sender).CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void OnStampRotateMove(object sender, MouseEventArgs e)
+    {
+        if (!_stampRotating || _editTarget == null) return;
+        bool shift = (Keyboard.Modifiers & ModifierKeys.Shift) != 0;
+        _editTarget.Angle = SnapAngle(PointerAngle(e.GetPosition(Root)) + _stampRotOffset, shift);
+        PositionStampHandles();
+        e.Handled = true;
+    }
+
+    private void OnStampRotateUp(object sender, MouseButtonEventArgs e)
+    {
+        _stampRotating = false;
+        ((UIElement)sender).ReleaseMouseCapture();
+        EndGesture();
+        e.Handled = true;
+    }
+
+    private double PointerAngle(Point p)
+    {
+        var v = p - _editTarget!.Center;
+        return Math.Atan2(v.Y, v.X) * 180 / Math.PI;
+    }
+
+    /// <summary>Free rotation with magnets on the axes; Shift steps by 15°.</summary>
+    private static double SnapAngle(double deg, bool shiftStep)
+    {
+        deg %= 360;
+        if (deg > 180) deg -= 360;
+        if (deg < -180) deg += 360;
+        if (shiftStep) return Math.Round(deg / 15) * 15;
+        foreach (double target in new[] { 0.0, 90, 180, -180, -90 })
+            if (Math.Abs(deg - target) <= 4)
+                return target == -180 ? 180 : target;
+        return deg;
+    }
+
     private ToggleButton[] ShapeButtons() => new[] { ToolArrow, ToolLine, ToolRect, ToolEllipse };
 
-    /// <summary>Mirror the active shape onto the group button and highlight it in the picker.</summary>
+    /// <summary>Highlight the active shape in the picker.</summary>
     private void UpdateShapesIcon()
     {
         foreach (var b in ShapeButtons())
-        {
-            bool active = (string)b.Tag == _shape.ToString();
-            b.IsChecked = active;
-            if (active)
-            {
-                var canvas = (Canvas)((Viewbox)b.Content).Child;
-                ShapesIcon.Data = canvas.Children.OfType<System.Windows.Shapes.Path>().First().Data;
-            }
-        }
+            b.IsChecked = (string)b.Tag == _shape.ToString();
     }
 
     private IEnumerable<ToggleButton> ToolToggles() => new[]
-        { ToolSelect, ToolPen, ToolMarker, ShapesGroup, ToolText, ToolOcr, ToolCounter, ToolBlur, ToolMove };
+        { ToolSelect, ToolPen, ToolMarker, ShapesGroup, ToolText, ToolOcr, ToolCounter, StampGroup, ToolBlur, ToolMove };
 
     private static bool UsesBrush(Tool t) =>
         t is Tool.Pen or Tool.Marker or Tool.Line or Tool.Arrow or Tool.Rect or Tool.Ellipse;
@@ -702,12 +1080,25 @@ public partial class OverlayWindow : Window
                 Tool.OcrText => Cursors.Arrow,
                 Tool.Select => Cursors.SizeAll,   // drag the whole selection to reposition it
                 Tool.Move => Cursors.SizeAll,
+                // Over a stamp the click will grab it, elsewhere it will place a new one.
+                Tool.Stamp when _editStamp?.Contains(p) == true
+                             || _stamps.Any(s => s.Contains(p)) => Cursors.SizeAll,
                 _ => Cursors.Cross
             };
     }
 
     private void OnWheel(object sender, MouseWheelEventArgs e)
     {
+        // Wheel scales the active object (the corner grips do the same by drag).
+        if (_tool is Tool.Stamp or Tool.Move && _editTarget != null)
+        {
+            double factor = e.Delta > 0 ? 1.07 : 1 / 1.07;
+            _editTarget.Scale = Math.Clamp(_editTarget.Scale * factor, 0.3, 5);
+            PositionStampHandles();
+            e.Handled = true;
+            return;
+        }
+
         if (UsesBrush(_tool) || _tool is Tool.Text or Tool.Counter)
         {
             _thickness = Math.Clamp(_thickness + (e.Delta > 0 ? 1 : -1), 1, 50);
@@ -716,20 +1107,35 @@ public partial class OverlayWindow : Window
         }
     }
 
-    // ===== Move =====
+    // ===== Move tool =====
+    /// <summary>
+    /// Click selects the annotation under the pointer (stamps keep their own richer
+    /// target; anything else is wrapped in an <see cref="ElementEditTarget"/>) and
+    /// starts a move drag. Clicking inside the already-active object's rotated bounds
+    /// re-grabs it even where its strokes are thin; clicking empty space deselects.
+    /// </summary>
     private void TryBeginMove(Point p)
     {
-        var result = VisualTreeHelper.HitTest(AnnotCanvas, p);
-        if (result?.VisualHit is not DependencyObject hit) return;
+        var target = _editTarget?.Contains(p) == true ? _editTarget : null;
 
-        var child = TopLevelChild(hit);
-        if (child is not UIElement el) return;
+        if (target == null)
+        {
+            var result = VisualTreeHelper.HitTest(AnnotCanvas, p);
+            if (result?.VisualHit is DependencyObject hit && TopLevelChild(hit) is UIElement el)
+            {
+                target = _stamps.FirstOrDefault(s => ReferenceEquals(s.Element, el))
+                    ?? (IEditTarget?)(_editTarget is ElementEditTarget ee && ReferenceEquals(ee.Element, el)
+                        ? ee
+                        : new ElementEditTarget(el));
+            }
+        }
 
-        _moveTransform = EnsureTranslate(el);
-        _moveOrigX = _moveTransform.X;
-        _moveOrigY = _moveTransform.Y;
-        _moveStart = p;
-        _moving = true;
+        SetEditTarget(target);
+        if (target == null) return;
+
+        BeginGesture();
+        _stampMoving = true;
+        _stampMoveOffset = p - target.Center;
         Hit.CaptureMouse();
     }
 
@@ -743,14 +1149,6 @@ public partial class OverlayWindow : Window
             node = parent;
         }
         return null;
-    }
-
-    private static TranslateTransform EnsureTranslate(UIElement el)
-    {
-        if (el.RenderTransform is TranslateTransform t) return t;
-        var tt = new TranslateTransform();
-        el.RenderTransform = tt;
-        return tt;
     }
 
     private void BuildColorSwatches()
@@ -855,7 +1253,7 @@ public partial class OverlayWindow : Window
 
     private void HideShapesFlyout() => ShapesFlyout.Visibility = Visibility.Collapsed;
 
-    private void HideFlyouts() { HideColorFlyout(); HideShapesFlyout(); }
+    private void HideFlyouts() { HideColorFlyout(); HideShapesFlyout(); HideStampFlyout(); }
 
     // ===== Selection visuals =====
     private void UpdateSelection()
@@ -1465,7 +1863,8 @@ public partial class OverlayWindow : Window
         }
 
         bool ctrl = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
-        if (e.Key == Key.Escape) { Close(); e.Handled = true; }
+        // Esc first dismisses the object-edit handles; a second Esc closes the overlay.
+        if (e.Key == Key.Escape) { if (_editTarget != null) SetEditTarget(null); else Close(); e.Handled = true; }
         // In the Grab-text tool, Enter copies the highlighted text instead of the image.
         else if (e.Key == Key.Enter) { if (_tool == Tool.OcrText) _ = DoCopyText(); else DoCopy(); e.Handled = true; }
         else if (ctrl && e.Key == Key.C && _tool == Tool.OcrText) { _ = DoCopyText(); e.Handled = true; }
@@ -1473,5 +1872,7 @@ public partial class OverlayWindow : Window
         else if (ctrl && e.Key == Key.Z) { Undo(); e.Handled = true; }
         else if (ctrl && e.Key == Key.Y) { Redo(); e.Handled = true; }
         else if (ctrl && e.Key == Key.A) { SelectAllOrFullScreen(); e.Handled = true; }
+        // Del/Backspace removes the object currently showing edit handles.
+        else if (e.Key is Key.Delete or Key.Back && _editTarget != null) { DeleteEditTarget(); e.Handled = true; }
     }
 }

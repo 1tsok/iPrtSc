@@ -222,7 +222,7 @@
                     </ToggleButton>
                     <ToggleButton x:Name="ToolMove" Style="{StaticResource ToolToggle}" Tag="Move" ToolTip="Move objects" Click="OnToolClick">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
-                            <Path Style="{StaticResource Icon}" Data="M5 9 2 12 5 15 M9 5 12 2 15 5 M15 19 12 22 9 19 M19 9 22 12 19 15 M2 12H22 M12 2v20"/>
+                            <Path Style="{StaticResource Icon}" Data="M5 3l6.9 16.6 2.4-7.3 7.3-2.4z"/>
                         </Canvas></Viewbox>
                     </ToggleButton>
                     <ToggleButton x:Name="ToolPen" Style="{StaticResource ToolToggle}" Tag="Pen" ToolTip="Pen" Click="OnToolClick">
@@ -235,22 +235,12 @@
                             <Path Style="{StaticResource Icon}" Data="M9 11 3 17v3h9l3-3 M22 12l-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>
                         </Canvas></Viewbox>
                     </ToggleButton>
-                    <!-- Shapes group: short click reuses the last-picked shape (1 click); press-and-hold
-                         or right-click opens the picker. The chevron under the icon hints at the picker
-                         and shares the button foreground, so it stays clean on the accent (active) state. -->
+                    <!-- Shapes group: a click opens the picker; the tool activates on shape pick. -->
                     <ToggleButton x:Name="ShapesGroup" Style="{StaticResource ToolToggle}"
-                                  ToolTip="Shapes — click: last shape · hold / right-click: choose"
-                                  PreviewMouseLeftButtonDown="OnShapesDown"
-                                  PreviewMouseLeftButtonUp="OnShapesUp"
-                                  PreviewMouseRightButtonUp="OnShapesRightUp">
-                        <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                            <Viewbox Width="16" Height="16" HorizontalAlignment="Center"><Canvas Width="24" Height="24">
-                                <Path x:Name="ShapesIcon" Style="{StaticResource Icon}" Data="M13 3H21V11 M21 3 3 21"/>
-                            </Canvas></Viewbox>
-                            <Path Margin="0,1.5,0,0" HorizontalAlignment="Center" Data="M0 0 L3 2.5 L6 0"
-                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}"
-                                  StrokeThickness="1.3" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
-                        </StackPanel>
+                                  ToolTip="Shapes" Click="OnShapesClick">
+                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
+                            <Path Style="{StaticResource Icon}" Data="M3 9.5a6.5 6.5 0 1 0 13 0 6.5 6.5 0 1 0-13 0z M12 12h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z"/>
+                        </Canvas></Viewbox>
                     </ToggleButton>
                     <ToggleButton x:Name="ToolText" Style="{StaticResource ToolToggle}" Tag="Text" ToolTip="Text" Click="OnToolClick">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
@@ -260,6 +250,13 @@
                     <ToggleButton x:Name="ToolCounter" Style="{StaticResource ToolToggle}" Tag="Counter" ToolTip="Numbered step" Click="OnToolClick">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
                             <Path Style="{StaticResource Icon}" Data="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M11 9.5 12.5 8.5V16"/>
+                        </Canvas></Viewbox>
+                    </ToggleButton>
+                    <!-- Stamp group: same interaction as shapes — a click opens the palette. -->
+                    <ToggleButton x:Name="StampGroup" Style="{StaticResource ToolToggle}"
+                                  ToolTip="Stamps" Click="OnStampsClick">
+                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
+                            <Path Style="{StaticResource Icon}" Data="M5 22h14 M19.27 13.73A2.5 2.5 0 0 0 17.5 13h-11A2.5 2.5 0 0 0 4 15.5V17a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1.5c0-.66-.26-1.3-.73-1.77 M14 13V8.5C14 7 15 7 15 5a3 3 0 0 0-6 0c0 2 1 2 1 3.5V13"/>
                         </Canvas></Viewbox>
                     </ToggleButton>
                     <ToggleButton x:Name="ToolBlur" Style="{StaticResource ToolToggle}" Tag="Blur" ToolTip="Pixelate area" Click="OnToolClick">
@@ -329,6 +326,66 @@
                             <Path Style="{StaticResource Icon}" Data="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/>
                         </Canvas></Viewbox>
                     </ToggleButton>
+                </StackPanel>
+            </Border>
+
+            <!-- Stamp palette flyout (opens from the stamp-group caret) -->
+            <Border x:Name="StampFlyout" Style="{StaticResource Panel}" Visibility="Collapsed">
+                <StackPanel Orientation="Vertical">
+                    <DockPanel Margin="4,1,4,6" LastChildFill="False">
+                        <TextBlock DockPanel.Dock="Left" Text="Stamps" Foreground="#FFF1F1F1"
+                                   FontFamily="Segoe UI Variable, Segoe UI" FontSize="13"
+                                   VerticalAlignment="Center"/>
+                        <!-- Ink mode: deep inks for light backgrounds / bright inks for dark ones.
+                             Each segment previews its target: a dark "A" on paper, a light "A" on slate. -->
+                        <Border DockPanel.Dock="Right" CornerRadius="7" Background="#1FFFFFFF" Padding="2"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <Border x:Name="InkModeLight" Width="26" Height="17" CornerRadius="5"
+                                        Background="#FFF8F6F1" Cursor="Hand"
+                                        BorderBrush="{StaticResource Accent}"
+                                        ToolTip="Ink for light backgrounds"
+                                        MouseLeftButtonDown="OnInkModePick">
+                                    <TextBlock Text="A" Foreground="#FF37474F" FontFamily="Arial Black, Segoe UI Black"
+                                               FontSize="10" FontWeight="Black"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Border x:Name="InkModeDark" Width="26" Height="17" CornerRadius="5"
+                                        Background="#FF1B1D20" Cursor="Hand" Margin="3,0,0,0"
+                                        BorderBrush="{StaticResource Accent}"
+                                        ToolTip="Ink for dark backgrounds"
+                                        MouseLeftButtonDown="OnInkModePick">
+                                    <TextBlock Text="A" Foreground="#FF90A4AE" FontFamily="Arial Black, Segoe UI Black"
+                                               FontSize="10" FontWeight="Black"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <!-- Auto: half paper / half slate, the letter flips ink on each half -->
+                                <Border x:Name="InkModeAuto" Width="26" Height="17" CornerRadius="5"
+                                        Cursor="Hand" Margin="3,0,0,0"
+                                        BorderBrush="{StaticResource Accent}"
+                                        ToolTip="Auto — ink adapts to the background under the stamp"
+                                        MouseLeftButtonDown="OnInkModePick">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#FFF8F6F1" Offset="0.5"/>
+                                            <GradientStop Color="#FF1B1D20" Offset="0.5"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <TextBlock Text="A" FontFamily="Arial Black, Segoe UI Black"
+                                               FontSize="10" FontWeight="Black"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock.Foreground>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#FF37474F" Offset="0.5"/>
+                                                <GradientStop Color="#FF90A4AE" Offset="0.5"/>
+                                            </LinearGradientBrush>
+                                        </TextBlock.Foreground>
+                                    </TextBlock>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </DockPanel>
+                    <UniformGrid x:Name="StampGrid" Columns="3"/>
                 </StackPanel>
             </Border>
 
