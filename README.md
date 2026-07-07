@@ -9,8 +9,8 @@ A fast, lightweight screenshot tool for Windows 11. Press a hotkey, select an
 area, annotate, grab text, then copy or save — all from the system tray.
 
 ## Screenshot
+<img width="465" height="495" alt="image" src="https://github.com/user-attachments/assets/05c84097-9ce7-4ded-b118-c41be31fd852" />
 
-<img width="542" height="510" alt="iPrtSc_demo png" src="https://github.com/user-attachments/assets/866d8bbe-ede5-4b82-ad95-98515eae7239" />
 
 
 ## Features
@@ -20,7 +20,7 @@ area, annotate, grab text, then copy or save — all from the system tray.
 - **Adjustable selection** — drag the handles to resize, or drag inside to
   reposition.
 - **Annotation tools** — pen, marker, line, arrow, rectangle, ellipse, text,
-  numbered steps and pixelate, plus move and undo/redo. Hold **Shift** with
+  numbered steps, stamps and pixelate, plus move and undo/redo. Hold **Shift** with
   pen or marker to draw a straight line; the mouse wheel adjusts the brush,
   text and step size on the fly.
 - **Colour palette** — a 30-colour grid to recolour any annotation.
