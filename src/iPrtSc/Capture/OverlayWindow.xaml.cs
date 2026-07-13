@@ -37,7 +37,7 @@ public partial class OverlayWindow : Window
     private readonly BitmapSource _src;
 
     // Selection resize handles
-    private readonly List<WpfRect> _handles = new();
+    private readonly List<FrameworkElement> _handles = new();
     private bool _resizing;
     private string _activeHandle = "";
 
@@ -1022,6 +1022,15 @@ public partial class OverlayWindow : Window
         // region briefly trails the pointer at a desktop edge.
         if (_movingSel) { BrushCursor.Visibility = Visibility.Collapsed; Hit.Cursor = Cursors.SizeAll; return; }
 
+        // While a new region is being dragged out the plain arrow is least distracting.
+        if (_dragging)
+        {
+            BrushCursor.Visibility = Visibility.Collapsed;
+            TextCursor.Visibility = Visibility.Collapsed;
+            Hit.Cursor = Cursors.Arrow;
+            return;
+        }
+
         // The "screenshot plane" is the selected region. Only there does the cursor change;
         // over the dimmed backdrop (and the chrome) it stays a plain arrow.
         bool inSel = !_sel.IsEmpty && _sel.Contains(p);
@@ -1077,8 +1086,10 @@ public partial class OverlayWindow : Window
 
         BrushCursor.Visibility = Visibility.Collapsed;
         TextCursor.Visibility = Visibility.Collapsed;
+        // Before any region exists the crosshair invites drawing one; once a region is
+        // there, the backdrop outside it gets the plain arrow.
         Hit.Cursor = !inSel
-            ? Cursors.Arrow
+            ? (_sel.IsEmpty ? Cursors.Cross : Cursors.Arrow)
             : _tool switch
             {
                 Tool.Text => Cursors.IBeam,
@@ -1307,6 +1318,7 @@ public partial class OverlayWindow : Window
 
     private void PositionPanels()
     {
+        // Must clear the resize handles, which stick out past the selection edge.
         const double gap = 10;
 
         ToolPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -1364,26 +1376,94 @@ public partial class OverlayWindow : Window
 
     private void BuildHandles()
     {
-        var accent = SelBorder.Stroke;
         foreach (var tag in HandleTags)
         {
-            var h = new WpfRect
+            // Edge handles are elongated pills along their edge; corner handles are
+            // L-shaped brackets whose elbow sits on the selection corner.
+            bool horizontal = tag is "T" or "B";
+            bool vertical = tag is "L" or "R";
+            FrameworkElement h;
+            if (horizontal || vertical)
             {
-                Width = 11,
-                Height = 11,
-                Fill = Brushes.White,
-                Stroke = accent,
-                StrokeThickness = 1.5,
-                Tag = tag,
-                Visibility = Visibility.Collapsed,
-                Cursor = CursorFor(tag)
-            };
+                double w = horizontal ? 38 : 7;
+                double ht = vertical ? 38 : 7;
+                h = new WpfRect
+                {
+                    Width = w,
+                    Height = ht,
+                    RadiusX = 3.5,
+                    RadiusY = 3.5,
+                    Fill = Brushes.White
+                };
+            }
+            else
+            {
+                h = BuildCornerHandle(tag);
+            }
+            h.Tag = tag;
+            h.Visibility = Visibility.Collapsed;
+            h.Cursor = CursorFor(tag);
             h.MouseLeftButtonDown += OnHandleDown;
             h.MouseMove += OnHandleMove;
             h.MouseLeftButtonUp += OnHandleUp;
             HandleCanvas.Children.Add(h);
             _handles.Add(h);
         }
+    }
+
+    // Full length of an edge pill / corner arm, and the corner element's fixed box size
+    // (must fit elbow-at-center + arm: 72/2 + 38 > 72 is fine, WPF only clips to layout
+    // size when the desired size exceeds it, which it never does here).
+    private const double HandleArm = 38;
+    private const double CornerBox = 72;
+
+    /// <summary>
+    /// An L-shaped corner bracket rendered like the edge pills (white, rounded ends):
+    /// two rounded rects unioned into one L geometry. Built for TL with the elbow
+    /// centered in the element, then rotated for the other corners so the center-based
+    /// positioning in PositionHandles puts the elbow on the selection corner.
+    /// </summary>
+    private static Grid BuildCornerHandle(string tag)
+    {
+        var path = new System.Windows.Shapes.Path
+        {
+            Data = CornerGeometry(HandleArm, HandleArm),
+            Fill = Brushes.White
+        };
+        var g = new Grid { Width = CornerBox, Height = CornerBox };
+        g.Children.Add(path);
+        g.RenderTransformOrigin = new Point(0.5, 0.5);
+        g.RenderTransform = new RotateTransform(tag switch
+        {
+            "TR" => 90,
+            "BR" => 180,
+            "BL" => 270,
+            _ => 0
+        });
+        return g;
+    }
+
+    /// <summary>L geometry for a corner bracket, pre-rotation: arm a1 along X, a2 along Y.</summary>
+    private static Geometry CornerGeometry(double a1, double a2)
+    {
+        const double th = 6, radius = 3;
+        const double o = CornerBox / 2 - th / 2;   // places the elbow point (th/2, th/2) at center
+        return new CombinedGeometry(GeometryCombineMode.Union,
+            new RectangleGeometry(new Rect(o, o, a1, th), radius, radius),
+            new RectangleGeometry(new Rect(o, o, th, a2), radius, radius));
+    }
+
+    /// <summary>
+    /// Handle sizing along one selection axis of length s: on small regions the pill and
+    /// corner arms shrink to share the edge; when the pill would get too short it is
+    /// dropped and the corner arms split the edge between themselves.
+    /// </summary>
+    private static (double Arm, double Pill, bool ShowPill) SizeAxis(double s)
+    {
+        const double gap = 6;
+        double len = Math.Min(HandleArm, (s - 2 * gap) / 3);
+        if (len >= 12) return (len, len, true);
+        return (Math.Min(HandleArm, (s - gap) / 2), 0, false);
     }
 
     private static Cursor CursorFor(string tag) => tag switch
@@ -1403,7 +1483,8 @@ public partial class OverlayWindow : Window
 
     private void PositionHandles()
     {
-        if (_tool != Tool.Select || _sel.IsEmpty)
+        // Hidden while a new region is being dragged out so they don't get in the way.
+        if (_tool != Tool.Select || _sel.IsEmpty || _dragging)
         {
             foreach (var h in _handles) h.Visibility = Visibility.Collapsed;
             return;
@@ -1416,11 +1497,44 @@ public partial class OverlayWindow : Window
             ["TL"] = new(l, t), ["T"] = new(cx, t), ["TR"] = new(r, t), ["R"] = new(r, cy),
             ["BR"] = new(r, b), ["B"] = new(cx, b), ["BL"] = new(l, b), ["L"] = new(l, cy)
         };
+        // Handles sit outside the selection border with a small gap: each is pushed
+        // outward along its tag's direction far enough that its inner face clears the edge.
+        var dir = new Dictionary<string, Vector>
+        {
+            ["TL"] = new(-1, -1), ["T"] = new(0, -1), ["TR"] = new(1, -1), ["R"] = new(1, 0),
+            ["BR"] = new(1, 1), ["B"] = new(0, 1), ["BL"] = new(-1, 1), ["L"] = new(-1, 0)
+        };
+        // On small regions the handles shrink (and the pills drop out) so nothing
+        // sticks out past the frame.
+        var (armX, pillX, showPillX) = SizeAxis(_sel.Width);
+        var (armY, pillY, showPillY) = SizeAxis(_sel.Height);
+        bool showCorners = Math.Min(armX, armY) >= 5;
+
+        const double gap = 0;
         foreach (var h in _handles)
         {
-            var p = pos[(string)h.Tag];
-            Canvas.SetLeft(h, p.X - h.Width / 2);
-            Canvas.SetTop(h, p.Y - h.Height / 2);
+            string tag = (string)h.Tag;
+            bool corner = tag.Length == 2;
+            bool visible = corner ? showCorners : (tag is "T" or "B" ? showPillX : showPillY);
+            if (!visible) { h.Visibility = Visibility.Collapsed; continue; }
+
+            if (tag is "T" or "B") ((WpfRect)h).Width = pillX;
+            else if (tag is "L" or "R") ((WpfRect)h).Height = pillY;
+            else
+            {
+                // 90°/270° rotations swap the element's axes, so feed the arms swapped.
+                bool swap = tag is "TR" or "BL";
+                ((System.Windows.Shapes.Path)((Grid)h).Children[0]).Data =
+                    CornerGeometry(swap ? armY : armX, swap ? armX : armY);
+            }
+
+            var p = pos[tag];
+            var u = dir[tag];
+            // Slightly past half the handle's thickness (corners 3.5, edges 4), so the
+            // handles hug the selection frame.
+            double d = gap + (corner ? 1.75 : 2.25);
+            Canvas.SetLeft(h, p.X + u.X * d - h.Width / 2);
+            Canvas.SetTop(h, p.Y + u.Y * d - h.Height / 2);
             h.Visibility = Visibility.Visible;
         }
     }
@@ -1428,8 +1542,8 @@ public partial class OverlayWindow : Window
     private void OnHandleDown(object sender, MouseButtonEventArgs e)
     {
         _resizing = true;
-        _activeHandle = (string)((WpfRect)sender).Tag;
-        ((WpfRect)sender).CaptureMouse();
+        _activeHandle = (string)((FrameworkElement)sender).Tag;
+        ((FrameworkElement)sender).CaptureMouse();
         e.Handled = true;
     }
 
@@ -1440,22 +1554,23 @@ public partial class OverlayWindow : Window
         double px = Math.Clamp(p.X, 0, Root.ActualWidth);
         double py = Math.Clamp(p.Y, 0, Root.ActualHeight);
 
+        // The corner brackets run 38px along each edge, so a smaller region would let
+        // them stick out past the frame; clamp the moving edge against the fixed one.
+        const double minSide = 40;
         double l = _sel.Left, t = _sel.Top, r = _sel.Right, b = _sel.Bottom;
         switch (_activeHandle)
         {
-            case "TL": l = px; t = py; break;
-            case "T": t = py; break;
-            case "TR": r = px; t = py; break;
-            case "R": r = px; break;
-            case "BR": r = px; b = py; break;
-            case "B": b = py; break;
-            case "BL": l = px; b = py; break;
-            case "L": l = px; break;
+            case "TL": l = Math.Min(px, r - minSide); t = Math.Min(py, b - minSide); break;
+            case "T": t = Math.Min(py, b - minSide); break;
+            case "TR": r = Math.Max(px, l + minSide); t = Math.Min(py, b - minSide); break;
+            case "R": r = Math.Max(px, l + minSide); break;
+            case "BR": r = Math.Max(px, l + minSide); b = Math.Max(py, t + minSide); break;
+            case "B": b = Math.Max(py, t + minSide); break;
+            case "BL": l = Math.Min(px, r - minSide); b = Math.Max(py, t + minSide); break;
+            case "L": l = Math.Min(px, r - minSide); break;
         }
 
-        double nl = Math.Min(l, r), nr = Math.Max(l, r);
-        double nt = Math.Min(t, b), nb = Math.Max(t, b);
-        _sel = new Rect(nl, nt, Math.Max(1, nr - nl), Math.Max(1, nb - nt));
+        _sel = new Rect(l, t, r - l, b - t);
         UpdateSelection();
         PositionPanels();
         e.Handled = true;
@@ -1464,7 +1579,7 @@ public partial class OverlayWindow : Window
     private void OnHandleUp(object sender, MouseButtonEventArgs e)
     {
         _resizing = false;
-        ((WpfRect)sender).ReleaseMouseCapture();
+        ((FrameworkElement)sender).ReleaseMouseCapture();
         e.Handled = true;
     }
 

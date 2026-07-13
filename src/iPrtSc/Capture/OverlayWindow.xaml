@@ -186,8 +186,9 @@
 
         <!-- Mouse surface. Cursor is driven from code (UpdateCursor): the special cursor
              (crosshair / brush / text / move) shows only inside the selected region; the
-             dimmed backdrop and the chrome keep a plain arrow. -->
-        <Border x:Name="Hit" Background="Transparent" Cursor="Arrow"
+             dimmed backdrop and the chrome keep a plain arrow. Starts as a crosshair
+             because no region exists yet. -->
+        <Border x:Name="Hit" Background="Transparent" Cursor="Cross"
                 MouseLeftButtonDown="OnMouseDown" MouseMove="OnMouseMove" MouseLeftButtonUp="OnMouseUp"
                 MouseRightButtonUp="OnRightClick"/>
 
