@@ -280,13 +280,24 @@ public sealed class EllipseAnnotation : Annotation, IDragAnnotation
     }
 }
 
-/// <summary>Pixelates (mosaics) a rectangular area sampled from the full screenshot.</summary>
-public sealed class PixelateAnnotation : Annotation, IDragAnnotation
+/// <summary>
+/// Pixelates (mosaics) a rectangular area sampled from the full screenshot.
+/// Implements <see cref="IEditTarget"/> natively rather than going through
+/// <see cref="ElementEditTarget"/>: a render transform would carry the frozen
+/// mosaic along, whereas moving or scaling this annotation re-crops the source
+/// at the new rectangle, so the mosaic always shows what is underneath it.
+/// The crop is axis-aligned, so rotation is not supported.
+/// </summary>
+public sealed class PixelateAnnotation : Annotation, IDragAnnotation, IEditTarget
 {
     private readonly Image _img;
     private readonly BitmapSource _source;
     private readonly double _scale;
     private readonly int _block;
+
+    private Rect _area;          // drawn rectangle, canvas coordinates
+    private Size _natural;       // size at scale 1 (the size it was drawn at)
+    private double _factor = 1;
 
     public override UIElement Element => _img;
 
@@ -303,28 +314,90 @@ public sealed class PixelateAnnotation : Annotation, IDragAnnotation
     {
         double x = Math.Min(a.X, b.X), y = Math.Min(a.Y, b.Y);
         double w = Math.Abs(a.X - b.X), h = Math.Abs(a.Y - b.Y);
-        Canvas.SetLeft(_img, x);
-        Canvas.SetTop(_img, y);
-        _img.Width = w;
-        _img.Height = h;
+        _natural = new Size(w, h);
+        _factor = 1;
+        SetArea(new Rect(x, y, w, h));
+    }
 
-        int px = (int)Math.Round(x * _scale);
-        int py = (int)Math.Round(y * _scale);
-        int pw = (int)Math.Round(w * _scale);
-        int ph = (int)Math.Round(h * _scale);
-        px = Math.Clamp(px, 0, _source.PixelWidth - 1);
-        py = Math.Clamp(py, 0, _source.PixelHeight - 1);
-        pw = Math.Clamp(pw, 1, _source.PixelWidth - px);
-        ph = Math.Clamp(ph, 1, _source.PixelHeight - py);
-        if (pw < 2 || ph < 2) { _img.Source = null; return; }
+    private void SetArea(Rect r)
+    {
+        _area = r;
+        Resample();
+    }
 
-        var crop = new CroppedBitmap(_source, new Int32Rect(px, py, pw, ph));
-        int dw = Math.Max(1, pw / _block);
-        int dh = Math.Max(1, ph / _block);
-        var small = new TransformedBitmap(crop, new ScaleTransform((double)dw / pw, (double)dh / ph));
+    /// <summary>
+    /// Re-crops the source under <see cref="_area"/>. The crop is expanded to whole
+    /// mosaic cells so the cell grid stays anchored to the screenshot instead of
+    /// swimming while the object is dragged; the element is then clipped back to the
+    /// drawn rectangle, which is what the user sees and what hit-testing reports.
+    /// </summary>
+    private void Resample()
+    {
+        Canvas.SetLeft(_img, _area.X);
+        Canvas.SetTop(_img, _area.Y);
+        _img.Width = _area.Width;
+        _img.Height = _area.Height;
+        _img.Clip = null;
+
+        if (_area.Width < 1 || _area.Height < 1) { _img.Source = null; return; }
+
+        int Align(double v, int dir) =>
+            dir < 0 ? (int)Math.Floor(v / _block) * _block : (int)Math.Ceiling(v / _block) * _block;
+
+        int ax = Math.Clamp(Align(_area.X * _scale, -1), 0, _source.PixelWidth - 1);
+        int ay = Math.Clamp(Align(_area.Y * _scale, -1), 0, _source.PixelHeight - 1);
+        int ar = Math.Clamp(Align(_area.Right * _scale, 1), ax + 1, _source.PixelWidth);
+        int ab = Math.Clamp(Align(_area.Bottom * _scale, 1), ay + 1, _source.PixelHeight);
+        int aw = ar - ax, ah = ab - ay;
+        if (aw < 2 || ah < 2) { _img.Source = null; return; }
+
+        var crop = new CroppedBitmap(_source, new Int32Rect(ax, ay, aw, ah));
+        int dw = Math.Max(1, aw / _block);
+        int dh = Math.Max(1, ah / _block);
+        var small = new TransformedBitmap(crop, new ScaleTransform((double)dw / aw, (double)dh / ah));
         small.Freeze();
         _img.Source = small;
+
+        double ex = ax / _scale, ey = ay / _scale;
+        Canvas.SetLeft(_img, ex);
+        Canvas.SetTop(_img, ey);
+        _img.Width = aw / _scale;
+        _img.Height = ah / _scale;
+        _img.Clip = new RectangleGeometry(
+            new Rect(_area.X - ex, _area.Y - ey, _area.Width, _area.Height));
     }
+
+    // ===== IEditTarget =====
+    public Point Center
+    {
+        get => new(_area.X + _area.Width / 2, _area.Y + _area.Height / 2);
+        set => SetArea(new Rect(
+            value.X - _area.Width / 2, value.Y - _area.Height / 2, _area.Width, _area.Height));
+    }
+
+    public double Scale
+    {
+        get => _factor;
+        set
+        {
+            var c = Center;
+            _factor = value;
+            double w = _natural.Width * _factor, h = _natural.Height * _factor;
+            SetArea(new Rect(c.X - w / 2, c.Y - h / 2, w, h));
+        }
+    }
+
+    /// <summary>Always 0: the mosaic is sampled on an axis-aligned grid.</summary>
+    public double Angle
+    {
+        get => 0;
+        set { /* rotation would break resampling */ }
+    }
+
+    public Vector HalfSize => new(_area.Width / 2, _area.Height / 2);
+
+    public double NaturalHalfDiag =>
+        Math.Sqrt(_natural.Width * _natural.Width + _natural.Height * _natural.Height) / 2;
 }
 
 public sealed class TextAnnotation : Annotation

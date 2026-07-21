@@ -11,6 +11,9 @@
 
         <!-- Action buttons (Segoe Fluent Icons) -->
         <Style x:Key="ToolBtn" TargetType="Button">
+            <!-- Toolbar controls never take keyboard focus: a text box being edited must
+                 keep it, so that picking a colour or a size restyles the live text. -->
+            <Setter Property="Focusable" Value="False"/>
             <Setter Property="Width" Value="26"/>
             <Setter Property="Height" Value="26"/>
             <Setter Property="Margin" Value="1"/>
@@ -52,6 +55,7 @@
 
         <!-- Tool toggles -->
         <Style x:Key="ToolToggle" TargetType="ToggleButton">
+            <Setter Property="Focusable" Value="False"/>
             <Setter Property="Width" Value="26"/>
             <Setter Property="Height" Value="26"/>
             <Setter Property="Margin" Value="1"/>

@@ -72,6 +72,8 @@ public partial class OverlayWindow : Window
     private enum StampInkMode { ForLight, ForDark, Auto }
     private StampInkMode _stampInkMode = StampInkMode.Auto;   // which ink new stamps get
     private readonly List<StampAnnotation> _stamps = new();
+    // Pixelate blocks are their own edit targets so moving one re-samples the background.
+    private readonly List<PixelateAnnotation> _pixelates = new();
     private StampAnnotation? _editStamp;                   // stamp currently showing handles
     private readonly List<System.Windows.Shapes.Ellipse> _stampCorners = new();
     private Grid? _stampRotHandle;
@@ -130,6 +132,7 @@ public partial class OverlayWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         _scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        Root.PreviewMouseDown += OnRootPreviewDown;
         UpdateDim(Rect.Empty);
         BuildColorSwatches();
         UpdateShapesIcon();
@@ -149,6 +152,13 @@ public partial class OverlayWindow : Window
 
         if (_tool == Tool.Move)
         {
+            // Single click moves, double click edits the text under the pointer.
+            if (e.ClickCount == 2 && TextBoxAt(p) is TextBox tb)
+            {
+                SetEditTarget(null);
+                BeginTextEdit(tb, p, isNew: false);
+                return;
+            }
             TryBeginMove(p);
             return; // Move never re-selects or clears the region
         }
@@ -356,7 +366,9 @@ public partial class OverlayWindow : Window
         switch (_tool)
         {
             case Tool.Text:
-                PlaceText(start, brush);
+                // A click on existing text edits it instead of stacking a new box on top.
+                if (TextBoxAt(p) is TextBox existing) BeginTextEdit(existing, p, isNew: false);
+                else PlaceText(start, brush);
                 return;
             case Tool.Counter:
                 PlaceCounter(start, brush);
@@ -387,7 +399,9 @@ public partial class OverlayWindow : Window
                 _current = new EllipseAnnotation(brush, _thickness);
                 break;
             case Tool.Blur:
-                _current = new PixelateAnnotation(_src, _scale);
+                var pixelate = new PixelateAnnotation(_src, _scale);
+                _pixelates.Add(pixelate);
+                _current = pixelate;
                 break;
             default:
                 return;
@@ -400,17 +414,215 @@ public partial class OverlayWindow : Window
         Hit.CaptureMouse();
     }
 
+    /// <summary>
+    /// Drops a new empty text box and starts editing it. Nothing is pushed on the undo
+    /// stack yet: the box is only recorded once editing ends with actual text in it
+    /// (see <see cref="OnTextLostFocus"/>), so "add text" undoes as a single step and an
+    /// abandoned empty box leaves no trace.
+    /// </summary>
     private void PlaceText(Point p, Brush brush)
     {
         var ann = new TextAnnotation(brush, 12 + _thickness * 3);
         Canvas.SetLeft(ann.Box, p.X);
         Canvas.SetTop(ann.Box, p.Y);
+        ann.Box.LostKeyboardFocus += OnTextLostFocus;
+        ann.Box.ContextMenu = BuildTextMenu(ann.Box);
         AnnotCanvas.Children.Add(ann.Box);
-        PushAdd(ann);
+        BeginTextEdit(ann.Box, null, isNew: true);
+    }
 
-        ann.Box.Focusable = true;
-        ann.Box.Focus();
-        Keyboard.Focus(ann.Box);
+    // ===== Text editing =====
+    private TextBox? _editBox;          // text box currently being edited
+    private string _editBoxText = "";   // its content when this edit started
+    private bool _editBoxIsNew;         // the box was created by this edit
+
+    /// <summary>The text annotation under the pointer, if any.</summary>
+    private TextBox? TextBoxAt(Point p)
+    {
+        var result = VisualTreeHelper.HitTest(AnnotCanvas, p);
+        for (DependencyObject? d = result?.VisualHit; d != null; d = VisualTreeHelper.GetParent(d))
+            if (d is TextBox tb) return tb;
+        return null;
+    }
+
+    /// <summary>
+    /// Focuses a text box and, when a click position is given, drops the caret on the
+    /// clicked character. The point is translated through the box's own transforms, so
+    /// this lands correctly on text the Move tool has scaled or rotated.
+    /// </summary>
+    private void BeginTextEdit(TextBox box, Point? caretAt, bool isNew)
+    {
+        // Re-entering the box that is already being edited continues the same session,
+        // so the original text and the "was created by this edit" flag survive for undo.
+        bool continuing = ReferenceEquals(box, _editBox);
+
+        box.Focusable = true;
+        box.Focus();               // commits whatever box was being edited before
+        Keyboard.Focus(box);
+
+        if (!continuing)
+        {
+            _editBox = box;
+            _editBoxText = box.Text;
+            _editBoxIsNew = isNew;
+        }
+
+        if (caretAt is Point p)
+            box.CaretIndex = box.GetCharacterIndexFromPoint(Root.TranslatePoint(p, box), true);
+
+        // Hand the mouse to the box itself: with the surface out of the way WPF gives
+        // drag-select, word/line selection, Shift+click and the Cut/Copy/Paste menu for
+        // free. OnTextLostFocus puts the surface back.
+        Hit.IsHitTestVisible = false;
+        TextCursor.Visibility = Visibility.Collapsed;
+        BrushCursor.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// The editing menu, built from the same styles as the overlay's own right-click
+    /// menu so it does not fall back to the stock Windows one. Item states are refreshed
+    /// on open, since they depend on the selection and on the clipboard.
+    /// </summary>
+    private ContextMenu BuildTextMenu(TextBox box)
+    {
+        MenuItem Item(string header, string gesture, Action action)
+        {
+            var mi = new MenuItem
+            {
+                Header = header,
+                InputGestureText = gesture,
+                Style = (Style)FindResource("CtxItem")
+            };
+            mi.Click += (_, _) => action();
+            return mi;
+        }
+
+        var cut = Item("Cut", "Ctrl+X", box.Cut);
+        var copy = Item("Copy", "Ctrl+C", box.Copy);
+        var paste = Item("Paste", "Ctrl+V", box.Paste);
+        var all = Item("Select all", "Ctrl+A", box.SelectAll);
+
+        var menu = new ContextMenu { Style = (Style)FindResource("CtxMenu") };
+        menu.Items.Add(cut);
+        menu.Items.Add(copy);
+        menu.Items.Add(paste);
+        menu.Items.Add(new Separator { Style = (Style)FindResource("CtxSep") });
+        menu.Items.Add(all);
+
+        menu.Opened += (_, _) =>
+        {
+            bool selected = box.SelectionLength > 0;
+            cut.IsEnabled = selected;
+            copy.IsEnabled = selected;
+            all.IsEnabled = box.Text.Length > 0;
+            try { paste.IsEnabled = Clipboard.ContainsText(); }
+            catch { paste.IsEnabled = true; }   // clipboard busy: let the paste try
+        };
+        return menu;
+    }
+
+    /// <summary>True when focus has moved into an open context menu rather than away.</summary>
+    private static bool InContextMenu(object? focus)
+    {
+        for (var d = focus as DependencyObject; d != null;
+             d = VisualTreeHelper.GetParent(d) ?? LogicalTreeHelper.GetParent(d))
+            if (d is ContextMenu) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// Ends the active edit by taking keyboard focus off the box. Clearing focus alone
+    /// is not enough: the window is a focus scope, so focusing it hands focus straight
+    /// back to the box it remembers. Making the box unfocusable drops it for real, and
+    /// wiping the scope's remembered element keeps it from coming back.
+    /// </summary>
+    private void EndTextEdit()
+    {
+        if (_editBox == null) return;
+        _editBox.Focusable = false;   // fires LostKeyboardFocus, which commits the edit
+        FocusManager.SetFocusedElement(this, null);
+        Keyboard.ClearFocus();
+        Focus();
+    }
+
+    /// <summary>True when the point falls inside the box currently being edited.</summary>
+    private bool OverEditBox(Point p)
+    {
+        if (_editBox == null) return false;
+        var local = Root.TranslatePoint(p, _editBox);
+        return local.X >= 0 && local.Y >= 0
+            && local.X <= _editBox.ActualWidth && local.Y <= _editBox.ActualHeight;
+    }
+
+    private bool IsChrome(DependencyObject? d)
+    {
+        for (; d != null; d = VisualTreeHelper.GetParent(d))
+            if (ReferenceEquals(d, UiCanvas) || ReferenceEquals(d, HandleCanvas)) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// While a text box is being edited the mouse surface is disabled, so this tunneling
+    /// handler is the only thing that still sees clicks. Clicks inside the box are left
+    /// alone (native editing); a click outside ends the edit and is re-dispatched to the
+    /// surface it was meant for, so dismissing an edit never costs an extra click.
+    /// </summary>
+    private void OnRootPreviewDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_editBox == null || OverEditBox(e.GetPosition(Root))) return;
+
+        // Toolbars and resize handles keep their own click AND the edit: picking a colour
+        // or a size is meant to restyle the text being typed, which only works while the
+        // box still holds focus. Focusable chrome ends the edit by itself, through
+        // LostKeyboardFocus; the colour swatches are plain Borders, so they never do.
+        if (IsChrome(e.OriginalSource as DependencyObject)) return;
+
+        EndTextEdit();
+
+        // The right button is left to its own MouseRightButtonUp on the restored surface.
+        if (e.ChangedButton != MouseButton.Left) return;
+
+        e.Handled = true;
+        OnMouseDown(Hit, e);
+    }
+
+    /// <summary>Turns a finished edit into one undo step (or drops an emptied box).</summary>
+    private void OnTextLostFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (sender is not TextBox box || !ReferenceEquals(box, _editBox)) return;
+
+        // Opening the editing menu takes keyboard focus too; that is not the end of the
+        // edit, and focus comes back to the box once the menu closes.
+        if (InContextMenu(e.NewFocus)) return;
+
+        Hit.IsHitTestVisible = true;   // the mouse surface goes back on top
+
+        string before = _editBoxText, after = box.Text;
+        bool wasNew = _editBoxIsNew;
+        _editBox = null;
+
+        if (wasNew)
+        {
+            if (after.Length == 0) { AnnotCanvas.Children.Remove(box); return; }
+            PushUndoItem(
+                undo: () => AnnotCanvas.Children.Remove(box),
+                redo: () => AnnotCanvas.Children.Add(box));
+            return;
+        }
+
+        if (after == before) return;
+
+        // Clearing existing text removes the box rather than leaving an invisible target.
+        if (after.Length == 0)
+        {
+            AnnotCanvas.Children.Remove(box);
+            PushUndoItem(
+                undo: () => { box.Text = before; AnnotCanvas.Children.Add(box); },
+                redo: () => AnnotCanvas.Children.Remove(box));
+            return;
+        }
+
+        PushUndoItem(undo: () => box.Text = before, redo: () => box.Text = after);
     }
 
     private void PlaceCounter(Point p, Brush brush)
@@ -462,9 +674,24 @@ public partial class OverlayWindow : Window
     private void PushAdd(Annotation a)
     {
         bool counter = a is CounterAnnotation;
+        var pixelate = a as PixelateAnnotation;
         PushUndoItem(
-            undo: () => { AnnotCanvas.Children.Remove(a.Element); if (counter) _counter = Math.Max(1, _counter - 1); },
-            redo: () => { AnnotCanvas.Children.Add(a.Element); if (counter) _counter++; });
+            undo: () =>
+            {
+                AnnotCanvas.Children.Remove(a.Element);
+                if (counter) _counter = Math.Max(1, _counter - 1);
+                if (pixelate != null)
+                {
+                    _pixelates.Remove(pixelate);
+                    if (ReferenceEquals(_editTarget, pixelate)) SetEditTarget(null);
+                }
+            },
+            redo: () =>
+            {
+                AnnotCanvas.Children.Add(a.Element);
+                if (counter) _counter++;
+                if (pixelate != null) _pixelates.Add(pixelate);
+            });
     }
 
     private void PushUndoItem(Action undo, Action redo)
@@ -579,6 +806,9 @@ public partial class OverlayWindow : Window
         _counter = 1;
         _current = null;
         _stamps.Clear();
+        _pixelates.Clear();
+        _editBox = null;   // a pending edit must not resurrect a box from the old region
+        Hit.IsHitTestVisible = true;
         DeactivateStampEdit();
         ClearOcr();   // recognized words belong to the old selection — drop them
         UpdateUndoRedo();
@@ -596,6 +826,7 @@ public partial class OverlayWindow : Window
     /// <summary>Activate a tool and sync the panel toggles + cursor.</summary>
     private void SelectTool(Tool tool, ToggleButton checkedBtn)
     {
+        EndTextEdit();   // picking another tool finishes whatever was being typed
         _tool = tool;
         foreach (var tb in ToolToggles())
             tb.IsChecked = ReferenceEquals(tb, checkedBtn);
@@ -785,6 +1016,7 @@ public partial class OverlayWindow : Window
     private static UIElement? TargetElement(IEditTarget t) => t switch
     {
         StampAnnotation sa => sa.Element,
+        PixelateAnnotation pa => pa.Element,
         ElementEditTarget ee => ee.Element,
         _ => null
     };
@@ -796,16 +1028,23 @@ public partial class OverlayWindow : Window
         if (target == null || TargetElement(target) is not UIElement el) return;
 
         var stamp = target as StampAnnotation;
+        var pixelate = target as PixelateAnnotation;
         void Remove()
         {
             AnnotCanvas.Children.Remove(el);
             if (stamp != null) _stamps.Remove(stamp);
+            if (pixelate != null) _pixelates.Remove(pixelate);
             if (_editTarget != null && ReferenceEquals(TargetElement(_editTarget), el))
                 SetEditTarget(null);
         }
         Remove();
         PushUndoItem(
-            undo: () => { AnnotCanvas.Children.Add(el); if (stamp != null) _stamps.Add(stamp); },
+            undo: () =>
+            {
+                AnnotCanvas.Children.Add(el);
+                if (stamp != null) _stamps.Add(stamp);
+                if (pixelate != null) _pixelates.Add(pixelate);
+            },
             redo: Remove);
     }
 
@@ -917,6 +1156,13 @@ public partial class OverlayWindow : Window
             Canvas.SetLeft(_stampCorners[i], corners[i].X - 6);
             Canvas.SetTop(_stampCorners[i], corners[i].Y - 6);
             _stampCorners[i].Visibility = Visibility.Visible;
+        }
+
+        // Pixelate samples on an axis-aligned grid, so it gets no rotate grip.
+        if (_editTarget is PixelateAnnotation)
+        {
+            _stampRotHandle!.Visibility = Visibility.Collapsed;
+            return;
         }
 
         var rp = At(0, -half.Y - 30);
@@ -1069,6 +1315,16 @@ public partial class OverlayWindow : Window
         // the line height and anchored at the top-left, exactly where PlaceText starts the box.
         if (_tool == Tool.Text && inSel)
         {
+            // Over existing text the click edits it, so show the plain I-beam instead of
+            // the caret preview that stands for "a new box starts here".
+            if (TextBoxAt(p) != null)
+            {
+                TextCursor.Visibility = Visibility.Collapsed;
+                BrushCursor.Visibility = Visibility.Collapsed;
+                Hit.Cursor = Cursors.IBeam;
+                return;
+            }
+
             double fs = 12 + _thickness * 3;
             double h = fs * 1.05;                      // ~cap-to-descender height of the actual text
             double c = Math.Max(3, h * 0.14);          // half-width of the top/bottom serifs
@@ -1119,6 +1375,7 @@ public partial class OverlayWindow : Window
         if (UsesBrush(_tool) || _tool is Tool.Text or Tool.Counter)
         {
             _thickness = Math.Clamp(_thickness + (e.Delta > 0 ? 1 : -1), 1, 50);
+            if (_editBox != null) _editBox.FontSize = 12 + _thickness * 3;   // resize live
             UpdateCursor(Mouse.GetPosition(Root));
             e.Handled = true;
         }
@@ -1148,8 +1405,9 @@ public partial class OverlayWindow : Window
             var result = VisualTreeHelper.HitTest(AnnotCanvas, p);
             if (result?.VisualHit is DependencyObject hit && TopLevelChild(hit) is UIElement el)
             {
-                target = _stamps.FirstOrDefault(s => ReferenceEquals(s.Element, el))
-                    ?? (IEditTarget?)(_editTarget is ElementEditTarget ee && ReferenceEquals(ee.Element, el)
+                target = (IEditTarget?)_stamps.FirstOrDefault(s => ReferenceEquals(s.Element, el))
+                    ?? (IEditTarget?)_pixelates.FirstOrDefault(px => ReferenceEquals(px.Element, el))
+                    ?? (_editTarget is ElementEditTarget ee && ReferenceEquals(ee.Element, el)
                         ? ee
                         : new ElementEditTarget(el));
             }
@@ -1219,8 +1477,8 @@ public partial class OverlayWindow : Window
         ColorDot.Fill = ToBrush(_colorHex);
         RefreshColorSelection();
         HideColorFlyout();
-        // Recolor a focused text box live.
-        if (Keyboard.FocusedElement is TextBox tb)
+        // Recolor the text box being edited live.
+        if (_editBox is TextBox tb)
         {
             tb.Foreground = ToBrush(_colorHex);
             tb.CaretBrush = ToBrush(_colorHex);
@@ -1385,14 +1643,14 @@ public partial class OverlayWindow : Window
             FrameworkElement h;
             if (horizontal || vertical)
             {
-                double w = horizontal ? 38 : 7;
-                double ht = vertical ? 38 : 7;
+                double w = horizontal ? 76 : 3;
+                double ht = vertical ? 76 : 3;
                 h = new WpfRect
                 {
                     Width = w,
                     Height = ht,
-                    RadiusX = 3.5,
-                    RadiusY = 3.5,
+                    RadiusX = 1.5,
+                    RadiusY = 1.5,
                     Fill = Brushes.White
                 };
             }
@@ -1412,10 +1670,10 @@ public partial class OverlayWindow : Window
     }
 
     // Full length of an edge pill / corner arm, and the corner element's fixed box size
-    // (must fit elbow-at-center + arm: 72/2 + 38 > 72 is fine, WPF only clips to layout
+    // (must fit elbow-at-center + arm: 148/2 + 76 > 148 is fine, WPF only clips to layout
     // size when the desired size exceeds it, which it never does here).
-    private const double HandleArm = 38;
-    private const double CornerBox = 72;
+    private const double HandleArm = 76;
+    private const double CornerBox = 148;
 
     /// <summary>
     /// An L-shaped corner bracket rendered like the edge pills (white, rounded ends):
@@ -1446,7 +1704,7 @@ public partial class OverlayWindow : Window
     /// <summary>L geometry for a corner bracket, pre-rotation: arm a1 along X, a2 along Y.</summary>
     private static Geometry CornerGeometry(double a1, double a2)
     {
-        const double th = 6, radius = 3;
+        const double th = 3, radius = 1.5;
         const double o = CornerBox / 2 - th / 2;   // places the elbow point (th/2, th/2) at center
         return new CombinedGeometry(GeometryCombineMode.Union,
             new RectangleGeometry(new Rect(o, o, a1, th), radius, radius),
@@ -1530,9 +1788,9 @@ public partial class OverlayWindow : Window
 
             var p = pos[tag];
             var u = dir[tag];
-            // Slightly past half the handle's thickness (corners 3.5, edges 4), so the
+            // Slightly past half the handle's thickness (1.5 for both), so the
             // handles hug the selection frame.
-            double d = gap + (corner ? 1.75 : 2.25);
+            const double d = gap + 0.25;
             Canvas.SetLeft(h, p.X + u.X * d - h.Width / 2);
             Canvas.SetTop(h, p.Y + u.Y * d - h.Height / 2);
             h.Visibility = Visibility.Visible;
@@ -1624,7 +1882,9 @@ public partial class OverlayWindow : Window
 
     private BitmapSource ComposeSelection()
     {
-        // Drop focus so a text caret isn't captured.
+        // Finish any edit first: an unfinished box would be captured with its caret and,
+        // worse, with its selection highlight painted over the text.
+        EndTextEdit();
         Keyboard.ClearFocus();
 
         var px = SelectionRectPx();
@@ -1984,8 +2244,7 @@ public partial class OverlayWindow : Window
         {
             if (e.Key == Key.Escape)
             {
-                Keyboard.ClearFocus();
-                Focus();
+                EndTextEdit();
                 e.Handled = true;
             }
             return;
