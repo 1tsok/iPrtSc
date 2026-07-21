@@ -40,6 +40,7 @@ public partial class OverlayWindow : Window
     private readonly List<FrameworkElement> _handles = new();
     private bool _resizing;
     private string _activeHandle = "";
+    private Vector _resizeGrab;   // dragged edge minus pointer, captured at grab
 
     private double _scale = 1.0;
     private bool _dragging;      // selection drag
@@ -1643,16 +1644,23 @@ public partial class OverlayWindow : Window
             FrameworkElement h;
             if (horizontal || vertical)
             {
-                double w = horizontal ? 76 : 3;
-                double ht = vertical ? 76 : 3;
-                h = new WpfRect
+                var pill = new WpfRect
                 {
-                    Width = w,
-                    Height = ht,
-                    RadiusX = 1.5,
-                    RadiusY = 1.5,
-                    Fill = Brushes.White
+                    Width = horizontal ? 76 : HandleThickness,
+                    Height = vertical ? 76 : HandleThickness,
+                    RadiusX = HandleThickness / 2,
+                    RadiusY = HandleThickness / 2,
+                    Fill = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
                 };
+                // The pill cannot carry the transparent grab stroke itself: WPF fits a
+                // Rectangle's geometry inside its layout size minus the stroke width, so a
+                // 4px pill under an 11px stroke would render nothing at all. The padded
+                // wrapper does the same job — a transparent Background still hit-tests.
+                var box = new Grid { Background = Brushes.Transparent };
+                box.Children.Add(pill);
+                h = box;
             }
             else
             {
@@ -1664,6 +1672,8 @@ public partial class OverlayWindow : Window
             h.MouseLeftButtonDown += OnHandleDown;
             h.MouseMove += OnHandleMove;
             h.MouseLeftButtonUp += OnHandleUp;
+            h.MouseEnter += OnHandleEnter;
+            h.MouseLeave += OnHandleLeave;
             HandleCanvas.Children.Add(h);
             _handles.Add(h);
         }
@@ -1674,6 +1684,18 @@ public partial class OverlayWindow : Window
     // size when the desired size exceeds it, which it never does here).
     private const double HandleArm = 76;
     private const double CornerBox = 148;
+    /// <summary>Stroke width of both the edge pills and the corner brackets.</summary>
+    private const double HandleThickness = 4;
+    /// <summary>What that grows to while the pointer is on the handle.</summary>
+    private const double HandleThicknessHover = 7;
+    /// <summary>
+    /// Invisible grab margin around each handle, widening it by half this on every side:
+    /// a padded transparent wrapper for the pills, a transparent stroke for the corner
+    /// brackets. 4px shapes are otherwise fiddly to hit.
+    /// </summary>
+    private const double HandleHitPad = 11;
+
+    private FrameworkElement? _hoverHandle;
 
     /// <summary>
     /// An L-shaped corner bracket rendered like the edge pills (white, rounded ends):
@@ -1685,8 +1707,10 @@ public partial class OverlayWindow : Window
     {
         var path = new System.Windows.Shapes.Path
         {
-            Data = CornerGeometry(HandleArm, HandleArm),
-            Fill = Brushes.White
+            Data = CornerGeometry(HandleArm, HandleArm, HandleThickness),
+            Fill = Brushes.White,
+            Stroke = Brushes.Transparent,
+            StrokeThickness = HandleHitPad
         };
         var g = new Grid { Width = CornerBox, Height = CornerBox };
         g.Children.Add(path);
@@ -1702,10 +1726,10 @@ public partial class OverlayWindow : Window
     }
 
     /// <summary>L geometry for a corner bracket, pre-rotation: arm a1 along X, a2 along Y.</summary>
-    private static Geometry CornerGeometry(double a1, double a2)
+    private static Geometry CornerGeometry(double a1, double a2, double th)
     {
-        const double th = 3, radius = 1.5;
-        const double o = CornerBox / 2 - th / 2;   // places the elbow point (th/2, th/2) at center
+        double radius = th / 2;
+        double o = CornerBox / 2 - th / 2;   // places the elbow point (th/2, th/2) at center
         return new CombinedGeometry(GeometryCombineMode.Union,
             new RectangleGeometry(new Rect(o, o, a1, th), radius, radius),
             new RectangleGeometry(new Rect(o, o, th, a2), radius, radius));
@@ -1722,6 +1746,21 @@ public partial class OverlayWindow : Window
         double len = Math.Min(HandleArm, (s - 2 * gap) / 3);
         if (len >= 12) return (len, len, true);
         return (Math.Min(HandleArm, (s - gap) / 2), 0, false);
+    }
+
+    private void OnHandleEnter(object sender, MouseEventArgs e)
+    {
+        _hoverHandle = (FrameworkElement)sender;
+        PositionHandles();
+    }
+
+    private void OnHandleLeave(object sender, MouseEventArgs e)
+    {
+        // Keep the handle grown for the whole resize drag: the pointer leaves it as soon
+        // as the frame follows the mouse, and flicking back to normal mid-drag looks broken.
+        if (_resizing) return;
+        if (ReferenceEquals(_hoverHandle, sender)) _hoverHandle = null;
+        PositionHandles();
     }
 
     private static Cursor CursorFor(string tag) => tag switch
@@ -1745,6 +1784,7 @@ public partial class OverlayWindow : Window
         if (_tool != Tool.Select || _sel.IsEmpty || _dragging)
         {
             foreach (var h in _handles) h.Visibility = Visibility.Collapsed;
+            _hoverHandle = null;   // a hidden handle never gets its MouseLeave
             return;
         }
 
@@ -1776,20 +1816,31 @@ public partial class OverlayWindow : Window
             bool visible = corner ? showCorners : (tag is "T" or "B" ? showPillX : showPillY);
             if (!visible) { h.Visibility = Visibility.Collapsed; continue; }
 
-            if (tag is "T" or "B") ((WpfRect)h).Width = pillX;
-            else if (tag is "L" or "R") ((WpfRect)h).Height = pillY;
+            // The hovered handle thickens, which is both the affordance and a bigger target.
+            double th = ReferenceEquals(h, _hoverHandle) ? HandleThicknessHover : HandleThickness;
+
+            if (tag is "T" or "B" or "L" or "R")
+            {
+                var box = (Grid)h;
+                var pill = (WpfRect)box.Children[0];
+                if (tag is "T" or "B") { pill.Width = pillX; pill.Height = th; }
+                else { pill.Width = th; pill.Height = pillY; }
+                pill.RadiusX = pill.RadiusY = th / 2;
+                box.Width = pill.Width + HandleHitPad;     // the grab margin around it
+                box.Height = pill.Height + HandleHitPad;
+            }
             else
             {
                 // 90°/270° rotations swap the element's axes, so feed the arms swapped.
                 bool swap = tag is "TR" or "BL";
                 ((System.Windows.Shapes.Path)((Grid)h).Children[0]).Data =
-                    CornerGeometry(swap ? armY : armX, swap ? armX : armY);
+                    CornerGeometry(swap ? armY : armX, swap ? armX : armY, th);
             }
 
             var p = pos[tag];
             var u = dir[tag];
-            // Slightly past half the handle's thickness (1.5 for both), so the
-            // handles hug the selection frame.
+            // Slightly past the center of the edge, so the handles hug the frame.
+            // Growing the thickness widens them evenly on both sides of it.
             const double d = gap + 0.25;
             Canvas.SetLeft(h, p.X + u.X * d - h.Width / 2);
             Canvas.SetTop(h, p.Y + u.Y * d - h.Height / 2);
@@ -1801,6 +1852,17 @@ public partial class OverlayWindow : Window
     {
         _resizing = true;
         _activeHandle = (string)((FrameworkElement)sender).Tag;
+
+        // Handles sit outside the frame and carry a grab margin, so the pointer is never
+        // exactly on the edge it drags. Remember the gap and keep it for the whole drag,
+        // otherwise the edge snaps to the pointer the moment the button goes down.
+        var p = e.GetPosition(Root);
+        double ex = _activeHandle.Contains('L') ? _sel.Left
+                  : _activeHandle.Contains('R') ? _sel.Right : p.X;
+        double ey = _activeHandle.Contains('T') ? _sel.Top
+                  : _activeHandle.Contains('B') ? _sel.Bottom : p.Y;
+        _resizeGrab = new Vector(ex - p.X, ey - p.Y);
+
         ((FrameworkElement)sender).CaptureMouse();
         e.Handled = true;
     }
@@ -1808,7 +1870,7 @@ public partial class OverlayWindow : Window
     private void OnHandleMove(object sender, MouseEventArgs e)
     {
         if (!_resizing) return;
-        var p = e.GetPosition(Root);
+        var p = e.GetPosition(Root) + _resizeGrab;
         double px = Math.Clamp(p.X, 0, Root.ActualWidth);
         double py = Math.Clamp(p.Y, 0, Root.ActualHeight);
 
@@ -1837,7 +1899,11 @@ public partial class OverlayWindow : Window
     private void OnHandleUp(object sender, MouseButtonEventArgs e)
     {
         _resizing = false;
-        ((FrameworkElement)sender).ReleaseMouseCapture();
+        var handle = (FrameworkElement)sender;
+        handle.ReleaseMouseCapture();
+        // The MouseLeave during the drag was ignored, so settle the hover state here.
+        _hoverHandle = handle.IsMouseOver ? handle : null;
+        PositionHandles();
         e.Handled = true;
     }
 
