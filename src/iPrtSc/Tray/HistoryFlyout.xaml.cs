@@ -6,8 +6,11 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Forms = System.Windows.Forms;
+using Shapes = System.Windows.Shapes;
 
 namespace iPrtSc;
 
@@ -17,7 +20,15 @@ namespace iPrtSc;
 /// </summary>
 public partial class HistoryFlyout : Window
 {
+    // Confirmation-flash icons, drawn on a 24x24 canvas.
+    private const string CheckIcon = "M4 12.5 L9.5 18 L20 6.5";
+    private const string OpenIcon = "M13.5 4.5h6v6 M19.5 4.5l-8.5 8.5 M17 13.5v5a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 4 18.5v-10A1.5 1.5 0 0 1 5.5 7h5";
+    private const string ErrorIcon = "M6.5 6.5l11 11 M17.5 6.5l-11 11";
+    private static readonly Color FlashColor = Colors.White;
+    private static readonly Color ErrorColor = Color.FromRgb(0xFF, 0x6B, 0x6B);
+
     private bool _closing;
+    private bool _holdOpen;                                   // ignore focus loss while a flash plays
 
     public HistoryFlyout(IReadOnlyList<string> files, string accent)
     {
@@ -59,16 +70,90 @@ public partial class HistoryFlyout : Window
                 Stretch = Stretch.UniformToFill,
                 Clip = new RectangleGeometry(new Rect(0, 0, 110, 72), 6, 6)
             };
+
+            var flash = BuildFlash();
+            var grid = new Grid();
+            grid.Children.Add(img);
+            grid.Children.Add(flash.Layer);
+
             var tile = new Border
             {
                 Style = (Style)FindResource("ThumbTile"),
-                Child = img,
+                Child = grid,
                 ToolTip = $"{Path.GetFileName(path)}\n{File.GetLastWriteTime(path):g}"
             };
-            tile.MouseLeftButtonUp += (_, _) => Copy(path);
-            tile.MouseRightButtonUp += (_, _) => Open(path);
+            tile.MouseLeftButtonUp += (_, _) => Copy(path, flash);
+            tile.MouseRightButtonUp += (_, _) => Open(path, flash);
 
             ThumbHost.Children.Add(tile);
+        }
+    }
+
+    /// <summary>Builds the (initially invisible) overlay that confirms an action on a tile.</summary>
+    private static TileFlash BuildFlash()
+    {
+        var icon = new Shapes.Path
+        {
+            Width = 21,
+            Height = 21,
+            Stretch = Stretch.Uniform,
+            StrokeThickness = 2,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        var label = new TextBlock
+        {
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 5, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        var layer = new Border
+        {
+            CornerRadius = new CornerRadius(6),
+            Background = new SolidColorBrush(Color.FromArgb(0xD8, 0x12, 0x12, 0x14)),
+            BorderThickness = new Thickness(1.5),
+            Opacity = 0,
+            IsHitTestVisible = false,                          // clicks must still reach the tile
+            Child = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Children = { icon, label }
+            }
+        };
+        return new TileFlash(layer, icon, label);
+    }
+
+    /// <summary>A tile's confirmation overlay: fades in, holds, fades out.</summary>
+    private sealed class TileFlash
+    {
+        private readonly Shapes.Path _icon;
+        private readonly TextBlock _label;
+
+        public TileFlash(Border layer, Shapes.Path icon, TextBlock label)
+        {
+            Layer = layer; _icon = icon; _label = label;
+        }
+
+        public Border Layer { get; }
+
+        public void Play(string text, string geometry, Color color)
+        {
+            var brush = new SolidColorBrush(color);
+            _icon.Data = Geometry.Parse(geometry);
+            _icon.Stroke = brush;
+            _label.Text = text;
+            _label.Foreground = brush;
+            Layer.BorderBrush = brush;
+
+            var fade = new DoubleAnimationUsingKeyFrames();
+            fade.KeyFrames.Add(new LinearDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(55))));
+            fade.KeyFrames.Add(new LinearDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260))));
+            fade.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(410))));
+            Layer.BeginAnimation(UIElement.OpacityProperty, fade);
         }
     }
 
@@ -114,18 +199,27 @@ public partial class HistoryFlyout : Window
         DismissUnlessPinned();
     }
 
-    private void Open(string path)
+    private void Open(string path, TileFlash flash)
     {
+        _holdOpen = true;                                      // the launched app steals focus
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
         }
-        catch (Exception ex) { Logger.Log("HistoryFlyout.Open", ex); }
-        DismissUnlessPinned();
+        catch (Exception ex)
+        {
+            Logger.Log("HistoryFlyout.Open", ex);
+            _holdOpen = false;
+            flash.Play("Open failed", ErrorIcon, ErrorColor);   // stay open so the message is readable
+            return;
+        }
+        flash.Play("Opened", OpenIcon, FlashColor);
+        DismissAfterFlash();
     }
 
-    private void Copy(string path)
+    private void Copy(string path, TileFlash flash)
     {
+        _holdOpen = true;
         try
         {
             var bi = new BitmapImage();
@@ -136,8 +230,30 @@ public partial class HistoryFlyout : Window
             bi.Freeze();
             ClipboardService.CopyImage(bi);
         }
-        catch (Exception ex) { Logger.Log("HistoryFlyout.Copy", ex); }
-        DismissUnlessPinned();
+        catch (Exception ex)
+        {
+            Logger.Log("HistoryFlyout.Copy", ex);
+            _holdOpen = false;
+            flash.Play("Copy failed", ErrorIcon, ErrorColor);   // e.g. the file was deleted meanwhile
+            return;
+        }
+        flash.Play("Copied", CheckIcon, FlashColor);
+        DismissAfterFlash();
+    }
+
+    /// <summary>Lets the confirmation flash play out before an unpinned flyout closes.</summary>
+    private void DismissAfterFlash()
+    {
+        if (Pinned) { _holdOpen = false; return; }
+
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(390) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            _holdOpen = false;
+            Dismiss();
+        };
+        timer.Start();
     }
 
     /// <summary>Shows the flyout anchored to the bottom-right of the cursor (typical tray behaviour).</summary>
@@ -169,7 +285,11 @@ public partial class HistoryFlyout : Window
     }
 
     /// <summary>When pinned, the flyout ignores focus loss and stays put; otherwise it closes.</summary>
-    private void OnDeactivated(object? sender, EventArgs e) => DismissUnlessPinned();
+    private void OnDeactivated(object? sender, EventArgs e)
+    {
+        if (_holdOpen) return;                                 // don't cut a confirmation flash short
+        DismissUnlessPinned();
+    }
 
     private bool Pinned => PinToggle.IsChecked == true;
 
