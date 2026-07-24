@@ -19,10 +19,23 @@ public partial class HistoryFlyout : Window
 {
     private bool _closing;
 
-    public HistoryFlyout(IReadOnlyList<string> files)
+    public HistoryFlyout(IReadOnlyList<string> files, string accent)
     {
         InitializeComponent();
+        ApplyAccent(accent);
         Build(files);
+    }
+
+    /// <summary>Re-tints the pin's active state with the user's chosen accent colour.</summary>
+    private void ApplyAccent(string accent)
+    {
+        try
+        {
+            var c = (Color)ColorConverter.ConvertFromString(accent);
+            Resources["Accent"] = new SolidColorBrush(c);
+            Resources["AccentSoft"] = new SolidColorBrush(Color.FromArgb(0x33, c.R, c.G, c.B));
+        }
+        catch { /* keep the default accent on a bad value */ }
     }
 
     private void Build(IReadOnlyList<string> files)
@@ -98,7 +111,7 @@ public partial class HistoryFlyout : Window
             System.Diagnostics.Process.Start("explorer.exe", $"\"{HistoryService.HistoryFolder}\"");
         }
         catch (Exception ex) { Logger.Log("HistoryFlyout.OnOpenFolder", ex); }
-        Dismiss();
+        DismissUnlessPinned();
     }
 
     private void Open(string path)
@@ -108,7 +121,7 @@ public partial class HistoryFlyout : Window
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
         }
         catch (Exception ex) { Logger.Log("HistoryFlyout.Open", ex); }
-        Dismiss();
+        DismissUnlessPinned();
     }
 
     private void Copy(string path)
@@ -124,7 +137,7 @@ public partial class HistoryFlyout : Window
             ClipboardService.CopyImage(bi);
         }
         catch (Exception ex) { Logger.Log("HistoryFlyout.Copy", ex); }
-        Dismiss();
+        DismissUnlessPinned();
     }
 
     /// <summary>Shows the flyout anchored to the bottom-right of the cursor (typical tray behaviour).</summary>
@@ -155,7 +168,15 @@ public partial class HistoryFlyout : Window
         NativeMethods.SetForegroundWindow(new WindowInteropHelper(this).Handle);
     }
 
-    private void OnDeactivated(object? sender, EventArgs e) => Dismiss();
+    /// <summary>When pinned, the flyout ignores focus loss and stays put; otherwise it closes.</summary>
+    private void OnDeactivated(object? sender, EventArgs e) => DismissUnlessPinned();
+
+    private bool Pinned => PinToggle.IsChecked == true;
+
+    private void DismissUnlessPinned()
+    {
+        if (!Pinned) Dismiss();
+    }
 
     private void OnKeyDown(object sender, KeyEventArgs e)
     {

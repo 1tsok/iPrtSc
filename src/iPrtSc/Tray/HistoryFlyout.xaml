@@ -10,6 +10,44 @@
     <Window.Resources>
         <SolidColorBrush x:Key="Fg" Color="#FFF1F1F1"/>
         <SolidColorBrush x:Key="Fg2" Color="#FF85858B"/>
+        <!-- Accent brushes are re-tinted at runtime from the user's chosen accent. -->
+        <SolidColorBrush x:Key="Accent" Color="#FF0A84FF"/>
+        <SolidColorBrush x:Key="AccentSoft" Color="#330A84FF"/>
+
+        <!-- Pin toggle: when checked, the flyout stays open instead of closing on focus loss. -->
+        <Style x:Key="PinBtn" TargetType="ToggleButton">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <Viewbox Width="15" Height="15">
+                                <Canvas Width="24" Height="24">
+                                    <Path x:Name="icon" Stroke="{StaticResource Fg2}" StrokeThickness="1.7"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Fill="Transparent"
+                                          Data="M12 17v5 M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>
+                                </Canvas>
+                            </Viewbox>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#1FFFFFFF"/>
+                                <Setter TargetName="icon" Property="Stroke" Value="{StaticResource Fg}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource AccentSoft}"/>
+                                <Setter TargetName="icon" Property="Stroke" Value="{DynamicResource Accent}"/>
+                                <Setter TargetName="icon" Property="Fill" Value="{DynamicResource AccentSoft}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <!-- A single thumbnail tile -->
         <Style x:Key="ThumbTile" TargetType="Border">
@@ -68,11 +106,20 @@
                 <Border Background="Transparent" Cursor="SizeAll" Margin="0,0,0,8"
                         MouseLeftButtonDown="OnDragHandle">
                     <Grid Margin="6,4,4,0">
-                        <TextBlock Text="Recent screenshots" Foreground="{StaticResource Fg}"
-                                   FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <!-- Subtle grip hinting the header is draggable -->
-                        <Path HorizontalAlignment="Right" VerticalAlignment="Center" Fill="{StaticResource Fg2}"
-                              Data="M0 0h2v2H0z M4 0h2v2H4z M0 4h2v2H0z M4 4h2v2H4z M0 8h2v2H0z M4 8h2v2H4z"/>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Recent screenshots" Foreground="{StaticResource Fg}"
+                                   FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   Margin="0,0,14,0"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <ToggleButton x:Name="PinToggle" Style="{StaticResource PinBtn}"
+                                          ToolTip="Keep this window open"/>
+                            <!-- Subtle grip hinting the header is draggable -->
+                            <Path Margin="8,0,2,0" VerticalAlignment="Center" Fill="{StaticResource Fg2}"
+                                  Data="M0 0h2v2H0z M4 0h2v2H4z M0 4h2v2H0z M4 4h2v2H4z M0 8h2v2H0z M4 8h2v2H4z"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
                 <WrapPanel x:Name="ThumbHost" Width="366"/>

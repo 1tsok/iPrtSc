@@ -158,7 +158,7 @@ public partial class App : Application
         {
             _historyFlyout?.Close();
             var files = HistoryService.Recent(12);
-            var fly = new HistoryFlyout(files);
+            var fly = new HistoryFlyout(files, _settings.AccentColor);
             fly.Closed += (_, _) => { if (ReferenceEquals(_historyFlyout, fly)) _historyFlyout = null; };
             _historyFlyout = fly;
             fly.ShowAtCursor();
