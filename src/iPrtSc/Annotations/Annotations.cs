@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -429,24 +430,67 @@ public sealed class CounterAnnotation : Annotation
     private readonly Grid _grid;
     public override UIElement Element => _grid;
 
+    private const double Ring = 2;   // circle outline thickness
+
     public CounterAnnotation(Brush fill, int number, double diameter)
     {
+        bool darkInk = IsLight(fill);
+        Brush ink = darkInk ? new SolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x1A)) : Brushes.White;
+
         _grid = new Grid { Width = diameter, Height = diameter };
         _grid.Children.Add(new Ellipse
         {
             Fill = fill,
-            Stroke = Brushes.White,
-            StrokeThickness = 2
+            Stroke = ink,
+            StrokeThickness = Ring
         });
-        _grid.Children.Add(new TextBlock
+        _grid.Children.Add(new Canvas
         {
-            Text = number.ToString(),
-            Foreground = Brushes.White,
-            FontWeight = FontWeights.Bold,
-            FontSize = diameter * 0.52,
-            FontFamily = new FontFamily("Segoe UI"),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
+            Width = diameter,
+            Height = diameter,
+            Children = { BuildDigits(number, diameter, ink, darkInk) }
         });
+    }
+
+    /// <summary>
+    /// Draws the number as a filled outline instead of a TextBlock: centering on the real ink
+    /// bounds keeps 1, 10 and 100 all optically centered (glyph side bearings otherwise push
+    /// multi-digit numbers off to one side), and lets wide numbers shrink to fit the circle.
+    /// </summary>
+    private static Path BuildDigits(int number, double diameter, Brush ink, bool darkInk)
+    {
+        // Dark ink on a light fill reads thinner than white on dark at the same weight,
+        // so the dark variant is drawn one step heavier to match it optically.
+        var typeface = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal,
+            darkInk ? FontWeights.Black : FontWeights.Bold, FontStretches.Normal);
+
+        var ft = new FormattedText(number.ToString(CultureInfo.InvariantCulture),
+            CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface,
+            diameter * 0.52, ink, 1.0);
+
+        var geo = ft.BuildGeometry(new Point(0, 0));
+        var b = geo.Bounds;
+        if (b.IsEmpty) return new Path { Data = geo, Fill = ink };
+
+        // Fit the ink box inside the circle: its corners must stay within the radius left by
+        // the ring (plus a hair of breathing room), which is what keeps 100 or 999 off the outline.
+        double rInner = diameter / 2 - Ring - diameter * 0.04;
+        double scale = Math.Min(1.0, 2 * rInner / Math.Sqrt(b.Width * b.Width + b.Height * b.Height));
+        var tg = new TransformGroup();
+        tg.Children.Add(new ScaleTransform(scale, scale));
+        tg.Children.Add(new TranslateTransform(
+            diameter / 2 - (b.X + b.Width / 2) * scale,
+            diameter / 2 - (b.Y + b.Height / 2) * scale));
+        geo.Transform = tg;
+
+        return new Path { Data = geo, Fill = ink };
+    }
+
+    /// <summary>True for fills that need dark digits; white ones would vanish on them.</summary>
+    private static bool IsLight(Brush fill)
+    {
+        if (fill is not SolidColorBrush sb) return false;
+        var c = sb.Color;
+        return (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) / 255.0 > 0.6;
     }
 }

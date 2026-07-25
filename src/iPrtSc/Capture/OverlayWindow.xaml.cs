@@ -48,6 +48,8 @@ public partial class OverlayWindow : Window
     private Point _start;
     private Rect _sel = Rect.Empty;
 
+    private System.Windows.Threading.DispatcherTimer? _hintTimer;   // auto-hides the status pill
+
     private Tool _tool = Tool.Select;
     private Tool _shape = Tool.Arrow;   // last shape picked from the shapes group
     private string _colorHex = "#FFE81123";   // red, also present in ColorPresets
@@ -854,11 +856,7 @@ public partial class OverlayWindow : Window
     }
 
     private void OnShapePick(object sender, RoutedEventArgs e)
-    {
-        _shape = Enum.Parse<Tool>((string)((ToggleButton)sender).Tag);
-        UpdateShapesIcon();
-        SelectTool(_shape, ShapesGroup);   // activates the shape and closes the flyout
-    }
+        => PickShape(Enum.Parse<Tool>((string)((ToggleButton)sender).Tag));   // also closes the flyout
 
     // ===== Stamp tool: group button, palette, edit handles =====
     // Same interaction as the shapes group: a click opens the palette right away.
@@ -2031,8 +2029,18 @@ public partial class OverlayWindow : Window
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(BuyMeACoffeeUrl) { UseShellExecute = true });
+            // The fullscreen topmost overlay would hide the browser and block a new capture,
+            // so the capture ends here — but the work in progress goes to History first,
+            // otherwise the annotations would be lost with the window.
+            if (_sel.Width >= 1 && _sel.Height >= 1) HistoryService.Archive(ComposeSelection(), _settings);
+            Close();
         }
-        catch (Exception ex) { Logger.Log("OnBuyCoffee", ex); }
+        catch (Exception ex)
+        {
+            Logger.Log("OnBuyCoffee", ex);
+            ClipboardService.CopyText(BuyMeACoffeeUrl);
+            ShowHint("Could not open the browser - link copied to clipboard", TimeSpan.FromSeconds(4));
+        }
     }
 
     private void DoCopy()
@@ -2063,17 +2071,36 @@ public partial class OverlayWindow : Window
         Close();
     }
 
-    /// <summary>Surfaces a transient status message (OCR feedback) centered over the selection.</summary>
-    private void ShowHint(string message)
+    /// <summary>
+    /// Surfaces a transient status message centered over the selection. Without
+    /// <paramref name="autoHide"/> the pill stays until something else clears it.
+    /// </summary>
+    private void ShowHint(string message, TimeSpan? autoHide = null)
     {
         HintText.Text = message;
         HintPill.Visibility = Visibility.Visible;
+
+        _hintTimer?.Stop();
+        if (autoHide is { } delay)
+        {
+            _hintTimer ??= new System.Windows.Threading.DispatcherTimer();
+            _hintTimer.Interval = delay;
+            _hintTimer.Tick -= OnHintTimerTick;
+            _hintTimer.Tick += OnHintTimerTick;
+            _hintTimer.Start();
+        }
 
         HintPill.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         double x = _sel.Left + (_sel.Width - HintPill.DesiredSize.Width) / 2;
         double y = _sel.Top + (_sel.Height - HintPill.DesiredSize.Height) / 2;
         Canvas.SetLeft(HintPill, Math.Max(8, x));
         Canvas.SetTop(HintPill, Math.Max(8, y));
+    }
+
+    private void OnHintTimerTick(object? sender, EventArgs e)
+    {
+        _hintTimer?.Stop();
+        HintPill.Visibility = Visibility.Collapsed;
     }
 
     // ===== OCR text grab =====
@@ -2328,5 +2355,40 @@ public partial class OverlayWindow : Window
         else if (ctrl && e.Key == Key.A) { SelectAllOrFullScreen(); e.Handled = true; }
         // Del/Backspace removes the object currently showing edit handles.
         else if (e.Key is Key.Delete or Key.Back && _editTarget != null) { DeleteEditTarget(); e.Handled = true; }
+        // Single-letter tool shortcuts (no modifiers, only once a selection exists).
+        else if (Keyboard.Modifiers == ModifierKeys.None && TryToolHotkey(e.Key)) e.Handled = true;
+    }
+
+    /// <summary>Maps a bare letter key to a tool; returns false when the key isn't a shortcut.</summary>
+    private bool TryToolHotkey(Key key)
+    {
+        if (ToolPanel.Visibility != Visibility.Visible) return false;   // no selection yet
+
+        switch (key)
+        {
+            case Key.C: SelectTool(Tool.Select, ToolSelect); return true;
+            case Key.V: SelectTool(Tool.Move, ToolMove); return true;
+            // Stamps: activate the tool and open the palette, same as clicking the group button.
+            case Key.S: SelectTool(Tool.Stamp, StampGroup); ShowStampFlyout(); return true;
+            case Key.P: SelectTool(Tool.Pen, ToolPen); return true;
+            case Key.M: SelectTool(Tool.Marker, ToolMarker); return true;
+            case Key.T: SelectTool(Tool.Text, ToolText); return true;
+            case Key.N: SelectTool(Tool.Counter, ToolCounter); return true;
+            case Key.B: SelectTool(Tool.Blur, ToolBlur); return true;
+            case Key.G: _ = EnterOcrMode(); return true;
+            case Key.A: PickShape(Tool.Arrow); return true;
+            case Key.L: PickShape(Tool.Line); return true;
+            case Key.R: PickShape(Tool.Rect); return true;
+            case Key.E: PickShape(Tool.Ellipse); return true;
+            default: return false;
+        }
+    }
+
+    /// <summary>Activates a shape and remembers it as the group's current shape.</summary>
+    private void PickShape(Tool shape)
+    {
+        _shape = shape;
+        UpdateShapesIcon();
+        SelectTool(shape, ShapesGroup);
     }
 }
