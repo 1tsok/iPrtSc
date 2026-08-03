@@ -173,12 +173,14 @@
         <!-- Frozen screenshot -->
         <Image x:Name="BaseImage" Stretch="Fill"/>
 
-        <!-- Spotlight dimming -->
+        <!-- Spotlight dimming. The veil never moves; the selection reads through it because
+             a second copy of the same screenshot is drawn on top, clipped to the region.
+             Resizing four dim bands around the selection instead would repaint the whole
+             desktop on every mouse move, which stalls the drag over a remote session. -->
+        <Rectangle x:Name="DimVeil" Fill="#9B000000" IsHitTestVisible="False"/>
+        <Image x:Name="ClearImage" Stretch="Fill" IsHitTestVisible="False" Visibility="Collapsed"/>
+
         <Canvas x:Name="DimCanvas" IsHitTestVisible="False">
-            <Rectangle x:Name="DimTop" Fill="#9B000000"/>
-            <Rectangle x:Name="DimLeft" Fill="#9B000000"/>
-            <Rectangle x:Name="DimRight" Fill="#9B000000"/>
-            <Rectangle x:Name="DimBottom" Fill="#9B000000"/>
             <!-- Covers the selection itself while text recognition runs. -->
             <Rectangle x:Name="DimBusy" Fill="#66000000" Visibility="Collapsed"/>
         </Canvas>

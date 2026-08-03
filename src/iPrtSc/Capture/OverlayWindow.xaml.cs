@@ -46,6 +46,11 @@ public partial class OverlayWindow : Window
     private string _activeHandle = "";
     private Vector _resizeGrab;   // dragged edge minus pointer, captured at grab
 
+    // Live clips, mutated in place: allocating a fresh geometry per mouse move churns
+    // the GC during a drag for no reason.
+    private readonly RectangleGeometry _clearClip = new();
+    private readonly RectangleGeometry _annotClip = new();
+
     private double _scale = 1.0;
     private bool _dragging;      // selection drag
     private bool _drawing;       // annotation drag
@@ -122,6 +127,14 @@ public partial class OverlayWindow : Window
         _src = src;
         _quickCopy = quickCopy;
         BaseImage.Source = src;
+        ClearImage.Source = src;
+        ClearImage.Clip = _clearClip;
+        AnnotCanvas.Clip = _annotClip;
+        // The capture is shown at exactly the pixel size it was taken at, so filtering can
+        // only cost time. It also stops a sub-pixel layout offset from resampling the whole
+        // screenshot on every repaint.
+        RenderOptions.SetBitmapScalingMode(BaseImage, BitmapScalingMode.NearestNeighbor);
+        RenderOptions.SetBitmapScalingMode(ClearImage, BitmapScalingMode.NearestNeighbor);
 
         try
         {
@@ -142,6 +155,14 @@ public partial class OverlayWindow : Window
             _bounds.Left, _bounds.Top, _bounds.Width, _bounds.Height, NativeMethods.SWP_SHOWWINDOW);
     }
 
+    protected override void OnClosed(EventArgs e)
+    {
+        // A move queued right before the overlay closes would keep the render hook alive.
+        _moveHandler = null;
+        CompositionTarget.Rendering -= OnMoveFrame;
+        base.OnClosed(e);
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         _scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
@@ -153,14 +174,28 @@ public partial class OverlayWindow : Window
         BuildHandles();
         ToolSelect.IsChecked = true;
         UpdateUndoRedo();
+        DropShadowsIfRemote();
         Activate();
         Focus();
+    }
+
+    /// <summary>
+    /// A remote session renders in software, where a blurred drop shadow is re-rasterised
+    /// every time its panel moves, which is every frame while the selection is dragged or
+    /// resized. The panels keep their border, so they still read as separate surfaces.
+    /// </summary>
+    private void DropShadowsIfRemote()
+    {
+        if (!SystemParameters.IsRemoteSession) return;
+        foreach (var panel in new[] { ToolPanel, ActionPanel, ColorFlyout, ShapesFlyout, StampFlyout })
+            panel.Effect = null;
     }
 
     // ===== Mouse =====
     private void OnMouseDown(object sender, MouseButtonEventArgs e)
     {
         var p = e.GetPosition(Root);
+        FlushMove(p);
         HideFlyouts();
 
         if (_tool == Tool.Move)
@@ -242,7 +277,14 @@ public partial class OverlayWindow : Window
 
     private void OnMouseMove(object sender, MouseEventArgs e)
     {
-        var p = e.GetPosition(Root);
+        // Freehand ink keeps every sample, otherwise dropped points would flatten a fast
+        // stroke into straight segments. Everything else redraws once per frame.
+        if (_drawing && _current is IFreehandAnnotation) ApplyMouseMove(e.GetPosition(Root));
+        else QueueMove(ApplyMouseMove, e.GetPosition(Root));
+    }
+
+    private void ApplyMouseMove(Point p)
+    {
         UpdateCursor(p);
 
         if (_ocrSelecting)
@@ -293,6 +335,47 @@ public partial class OverlayWindow : Window
         }
     }
 
+    // ===== Mouse-move coalescing =====
+    // A remote-desktop session delivers pointer moves in bursts, and every one of them used
+    // to run a full selection update plus a repaint that has to travel over the wire. Keep
+    // only the newest point and apply it once per rendered frame instead.
+    private Action<Point>? _moveHandler;
+    private Point _movePoint;
+    private long _moveStamp;
+
+    // Remote sessions ship each frame as a bitmap, so half the refresh rate is plenty and
+    // halves the traffic. Locally there is no reason to skip frames.
+    private static readonly long MoveInterval =
+        SystemParameters.IsRemoteSession ? System.Diagnostics.Stopwatch.Frequency / 30 : 0;
+
+    private void QueueMove(Action<Point> handler, Point p)
+    {
+        _movePoint = p;
+        if (_moveHandler == null) CompositionTarget.Rendering += OnMoveFrame;
+        _moveHandler = handler;
+    }
+
+    private void OnMoveFrame(object? sender, EventArgs e)
+    {
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (now - _moveStamp < MoveInterval) return;   // stay hooked, catch the next frame
+        _moveStamp = now;
+        FlushMove();
+    }
+
+    /// <summary>
+    /// Applies a pending move right away. Called before button-up so the gesture ends on the
+    /// real pointer position rather than on a point that is up to a frame stale.
+    /// </summary>
+    private void FlushMove(Point? at = null)
+    {
+        var handler = _moveHandler;
+        if (handler == null) return;
+        _moveHandler = null;
+        CompositionTarget.Rendering -= OnMoveFrame;
+        handler(at ?? _movePoint);
+    }
+
     /// <summary>Shift constraint: square/circle for shapes, 45° steps for line/arrow.</summary>
     private static Point Constrain(Point a, Point b, Tool t)
     {
@@ -314,6 +397,9 @@ public partial class OverlayWindow : Window
 
     private void OnMouseUp(object sender, MouseButtonEventArgs e)
     {
+        // Settle the last coalesced move first: the gesture must end where the pointer is.
+        FlushMove(e.GetPosition(Root));
+
         if (_ocrSelecting)
         {
             _ocrSelecting = false;
@@ -1558,7 +1644,7 @@ public partial class OverlayWindow : Window
     private void UpdateSelection()
     {
         UpdateDim(_sel);
-        AnnotCanvas.Clip = new RectangleGeometry(_sel);
+        _annotClip.Rect = _sel;
 
         Canvas.SetLeft(SelBorder, _sel.X);
         Canvas.SetTop(SelBorder, _sel.Y);
@@ -1568,9 +1654,15 @@ public partial class OverlayWindow : Window
 
         int pw = (int)Math.Round(_sel.Width * _scale);
         int ph = (int)Math.Round(_sel.Height * _scale);
-        SizeText.Text = $"{pw} × {ph}";
+        string size = $"{pw} × {ph}";
         SizeLabel.Visibility = Visibility.Visible;
-        SizeLabel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        // Re-measuring costs a layout pass, and the label only changes when its text does.
+        // (A layout pass while it was collapsed zeroes DesiredSize, so measure then too.)
+        if (SizeText.Text != size || SizeLabel.DesiredSize.Height < 1)
+        {
+            SizeText.Text = size;
+            SizeLabel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        }
         double ly = _sel.Y - SizeLabel.DesiredSize.Height - 6;
         if (ly < 4) ly = _sel.Y + 6;
         Canvas.SetLeft(SizeLabel, _sel.X);
@@ -1617,17 +1709,15 @@ public partial class OverlayWindow : Window
 
     private void UpdateDim(Rect s)
     {
-        double W = Root.ActualWidth, H = Root.ActualHeight;
         if (s.Width < 1 || s.Height < 1)
         {
-            Place(DimTop, 0, 0, W, H);
-            Hide(DimLeft); Hide(DimRight); Hide(DimBottom);
+            ClearImage.Visibility = Visibility.Collapsed;
             return;
         }
-        Place(DimTop, 0, 0, W, s.Top);
-        Place(DimLeft, 0, s.Top, s.Left, s.Height);
-        Place(DimRight, s.Right, s.Top, W - s.Right, s.Height);
-        Place(DimBottom, 0, s.Bottom, W, H - s.Bottom);
+        // Only the clip moves, so the repaint stays inside the selection instead of
+        // covering the whole desktop.
+        _clearClip.Rect = s;
+        ClearImage.Visibility = Visibility.Visible;
     }
 
     private static void Place(WpfRect r, double x, double y, double w, double h)
@@ -1885,7 +1975,14 @@ public partial class OverlayWindow : Window
     private void OnHandleMove(object sender, MouseEventArgs e)
     {
         if (!_resizing) return;
-        var p = e.GetPosition(Root) + _resizeGrab;
+        QueueMove(ApplyHandleMove, e.GetPosition(Root));
+        e.Handled = true;
+    }
+
+    private void ApplyHandleMove(Point raw)
+    {
+        if (!_resizing) return;
+        var p = raw + _resizeGrab;
         double px = Math.Clamp(p.X, 0, Root.ActualWidth);
         double py = Math.Clamp(p.Y, 0, Root.ActualHeight);
 
@@ -1908,11 +2005,11 @@ public partial class OverlayWindow : Window
         _sel = new Rect(l, t, r - l, b - t);
         UpdateSelection();
         PositionPanels();
-        e.Handled = true;
     }
 
     private void OnHandleUp(object sender, MouseButtonEventArgs e)
     {
+        FlushMove(e.GetPosition(Root));   // before _resizing drops, or the last move is lost
         _resizing = false;
         var handle = (FrameworkElement)sender;
         handle.ReleaseMouseCapture();
