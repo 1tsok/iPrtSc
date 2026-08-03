@@ -215,6 +215,18 @@
                     Background="#CC202124" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="10" Padding="16,9">
                 <TextBlock x:Name="HintText" Foreground="#FFEDEDED" FontSize="13" FontFamily="Segoe UI"/>
             </Border>
+
+            <!-- Quick copy confirmation: fades in over the selection, then the overlay closes -->
+            <Border x:Name="CopiedFlash" Visibility="Collapsed" Opacity="0"
+                    Background="#D8121214" BorderBrush="#FFFFFFFF" BorderThickness="1.5" CornerRadius="10" Padding="20,13">
+                <StackPanel>
+                    <Path Width="24" Height="24" Stretch="Uniform" Stroke="#FFFFFFFF" StrokeThickness="2"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                          HorizontalAlignment="Center" Data="M4 12.5 L9.5 18 L20 6.5"/>
+                    <TextBlock Text="Copied" Foreground="#FFFFFFFF" FontSize="13" FontWeight="SemiBold"
+                               FontFamily="Segoe UI" Margin="0,6,0,0" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
         </Canvas>
 
         <!-- Panels -->

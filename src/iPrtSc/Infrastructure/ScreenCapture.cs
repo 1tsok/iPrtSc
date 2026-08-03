@@ -22,6 +22,50 @@ public static class ScreenCapture
         return (bmp, ToBitmapSource(bmp), vb);
     }
 
+    /// <summary>
+    /// Captures the single monitor the cursor is on, in physical pixels. Used by the
+    /// selection-free full screen copy; falls back to the whole virtual desktop if the
+    /// cursor position or the monitor layout can't be read.
+    /// </summary>
+    public static (Bitmap bmp, BitmapSource src, Rectangle bounds) CaptureMonitorAtCursor()
+    {
+        var mb = GetMonitorBoundsAtCursor();
+        var bmp = new Bitmap(mb.Width, mb.Height, PixelFormat.Format32bppArgb);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.CopyFromScreen(mb.Left, mb.Top, 0, 0, new Size(mb.Width, mb.Height), CopyPixelOperation.SourceCopy);
+        }
+        ForceOpaque(bmp);
+        return (bmp, ToBitmapSource(bmp), mb);
+    }
+
+    /// <summary>Bounds of the monitor holding the cursor, in physical pixels.</summary>
+    public static Rectangle GetMonitorBoundsAtCursor()
+    {
+        if (!NativeMethods.GetCursorPos(out var pt))
+            return GetVirtualBounds();
+
+        Rectangle? hit = null;
+        NativeMethods.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero,
+            (IntPtr hMon, IntPtr hdc, ref NativeMethods.RECT _, IntPtr _) =>
+            {
+                var mi = new NativeMethods.MONITORINFO { cbSize = Marshal.SizeOf<NativeMethods.MONITORINFO>() };
+                if (NativeMethods.GetMonitorInfo(hMon, ref mi))
+                {
+                    var m = mi.rcMonitor;
+                    // Right/Bottom are exclusive, so a cursor on the far edge belongs to the next monitor.
+                    if (pt.X >= m.Left && pt.X < m.Right && pt.Y >= m.Top && pt.Y < m.Bottom)
+                    {
+                        hit = new Rectangle(m.Left, m.Top, m.Right - m.Left, m.Bottom - m.Top);
+                        return false; // found it, stop enumerating
+                    }
+                }
+                return true;
+            }, IntPtr.Zero);
+
+        return hit ?? GetVirtualBounds();
+    }
+
     /// <summary>Union of all monitor rectangles in physical pixels.</summary>
     public static Rectangle GetVirtualBounds()
     {

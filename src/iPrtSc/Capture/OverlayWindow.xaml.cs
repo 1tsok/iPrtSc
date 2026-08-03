@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Anim = System.Windows.Media.Animation;
 using Drawing = System.Drawing;
 using WpfRect = System.Windows.Shapes.Rectangle;
 
@@ -35,6 +36,9 @@ public partial class OverlayWindow : Window
     private readonly Drawing.Rectangle _bounds;
     private readonly AppSettings _settings;
     private readonly BitmapSource _src;
+
+    // Quick copy: no toolbar at all, the region lands on the clipboard on mouse release.
+    private readonly bool _quickCopy;
 
     // Selection resize handles
     private readonly List<FrameworkElement> _handles = new();
@@ -105,12 +109,18 @@ public partial class OverlayWindow : Window
     public event Action? Copied;
     public event Action<string>? TextCopied;   // carries the recognized text (for a confirmation toast)
 
-    public OverlayWindow(Drawing.Bitmap full, BitmapSource src, Drawing.Rectangle bounds, AppSettings settings)
+    /// <param name="quickCopy">
+    /// Quick copy mode: releasing the mouse over a region copies it straight to the clipboard
+    /// and closes the overlay, so the editing panels never appear.
+    /// </param>
+    public OverlayWindow(Drawing.Bitmap full, BitmapSource src, Drawing.Rectangle bounds, AppSettings settings,
+                         bool quickCopy = false)
     {
         InitializeComponent();
         _bounds = bounds;
         _settings = settings;
         _src = src;
+        _quickCopy = quickCopy;
         BaseImage.Source = src;
 
         try
@@ -339,6 +349,13 @@ public partial class OverlayWindow : Window
         {
             _dragging = false;
             Hit.ReleaseMouseCapture();
+            if (_quickCopy)
+            {
+                // Straight to the clipboard — no panels, no handles, no second click.
+                if (_sel.Width >= 4 && _sel.Height >= 4) QuickCopy();
+                else Close();
+                return;
+            }
             if (_sel.Width >= 4 && _sel.Height >= 4)
             {
                 ToolPanel.Visibility = Visibility.Visible;
@@ -2041,6 +2058,37 @@ public partial class OverlayWindow : Window
             ClipboardService.CopyText(BuyMeACoffeeUrl);
             ShowHint("Could not open the browser - link copied to clipboard", TimeSpan.FromSeconds(4));
         }
+    }
+
+    /// <summary>
+    /// Quick copy: the region goes to the clipboard and History, a "Copied" flash confirms it
+    /// over the selection, and the overlay closes when the flash is done.
+    /// </summary>
+    private void QuickCopy()
+    {
+        var image = ComposeSelection();
+        ClipboardService.CopyImage(image);
+        HistoryService.Archive(image, _settings);
+        Copied?.Invoke();
+        PlayCopiedFlash();
+    }
+
+    /// <summary>Fades the "Copied" pill in over the selection, holds it, fades it out, then closes.</summary>
+    private void PlayCopiedFlash()
+    {
+        CopiedFlash.Visibility = Visibility.Visible;
+        CopiedFlash.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double x = _sel.Left + (_sel.Width - CopiedFlash.DesiredSize.Width) / 2;
+        double y = _sel.Top + (_sel.Height - CopiedFlash.DesiredSize.Height) / 2;
+        Canvas.SetLeft(CopiedFlash, Math.Max(8, x));
+        Canvas.SetTop(CopiedFlash, Math.Max(8, y));
+
+        var fade = new Anim.DoubleAnimationUsingKeyFrames();
+        fade.KeyFrames.Add(new Anim.LinearDoubleKeyFrame(1, Anim.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(55))));
+        fade.KeyFrames.Add(new Anim.LinearDoubleKeyFrame(1, Anim.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260))));
+        fade.KeyFrames.Add(new Anim.LinearDoubleKeyFrame(0, Anim.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(410))));
+        fade.Completed += (_, _) => Close();
+        CopiedFlash.BeginAnimation(OpacityProperty, fade);
     }
 
     private void DoCopy()

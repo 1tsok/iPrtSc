@@ -16,6 +16,20 @@ public class AppSettings
     /// <summary>Modifiers for the History hotkey; same format as <see cref="HotkeyModifiers"/>.</summary>
     public string HistoryHotkeyModifiers { get; set; } = "None";
 
+    /// <summary>Optional global hotkey for a quick capture: pick a region, release the mouse and
+    /// the shot goes straight to the clipboard with no editing panel. Empty => no hotkey.</summary>
+    public string QuickCopyHotkeyKey { get; set; } = "";
+
+    /// <summary>Modifiers for the Quick copy hotkey; same format as <see cref="HotkeyModifiers"/>.</summary>
+    public string QuickCopyHotkeyModifiers { get; set; } = "None";
+
+    /// <summary>Optional global hotkey that copies the whole monitor under the cursor with no
+    /// selection and no overlay. Empty => no hotkey.</summary>
+    public string FullScreenHotkeyKey { get; set; } = "";
+
+    /// <summary>Modifiers for the Copy full screen hotkey; same format as <see cref="HotkeyModifiers"/>.</summary>
+    public string FullScreenHotkeyModifiers { get; set; } = "None";
+
     /// <summary>"Png" or "Jpeg".</summary>
     public string SaveFormat { get; set; } = "Png";
 
@@ -57,6 +71,12 @@ public class AppSettings
     /// <summary>Human-readable History hotkey, or "" when none is set.</summary>
     public string HistoryHotkeyDisplay => Display(HistoryHotkeyKey, HistoryHotkeyModifiers);
 
+    /// <summary>Human-readable Quick copy hotkey, or "" when none is set.</summary>
+    public string QuickCopyHotkeyDisplay => Display(QuickCopyHotkeyKey, QuickCopyHotkeyModifiers);
+
+    /// <summary>Human-readable Copy full screen hotkey, or "" when none is set.</summary>
+    public string FullScreenHotkeyDisplay => Display(FullScreenHotkeyKey, FullScreenHotkeyModifiers);
+
     /// <summary>Formats a key + modifiers as "Ctrl + Alt + Home"; returns "" for an unset key.</summary>
     public static string Display(string key, string mods) =>
         string.IsNullOrWhiteSpace(key) ? ""
@@ -70,6 +90,10 @@ public class AppSettings
         HotkeyModifiers = HotkeyModifiers,
         HistoryHotkeyKey = HistoryHotkeyKey,
         HistoryHotkeyModifiers = HistoryHotkeyModifiers,
+        QuickCopyHotkeyKey = QuickCopyHotkeyKey,
+        QuickCopyHotkeyModifiers = QuickCopyHotkeyModifiers,
+        FullScreenHotkeyKey = FullScreenHotkeyKey,
+        FullScreenHotkeyModifiers = FullScreenHotkeyModifiers,
         SaveFormat = SaveFormat,
         SaveFolder = SaveFolder,
         CopyToClipboardAlways = CopyToClipboardAlways,

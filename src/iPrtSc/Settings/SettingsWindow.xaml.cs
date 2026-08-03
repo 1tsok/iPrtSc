@@ -29,6 +29,10 @@ public partial class SettingsWindow : Window
     private string _hkMods;
     private string _histKey;     // "" => no History hotkey
     private string _histMods;
+    private string _quickKey;    // "" => no Quick copy hotkey
+    private string _quickMods;
+    private string _fullKey;     // "" => no Copy full screen hotkey
+    private string _fullMods;
     private string? _folder;     // null => default
     private string _accent;
 
@@ -46,12 +50,18 @@ public partial class SettingsWindow : Window
         _hkMods = working.HotkeyModifiers;
         _histKey = working.HistoryHotkeyKey;
         _histMods = working.HistoryHotkeyModifiers;
+        _quickKey = working.QuickCopyHotkeyKey;
+        _quickMods = working.QuickCopyHotkeyModifiers;
+        _fullKey = working.FullScreenHotkeyKey;
+        _fullMods = working.FullScreenHotkeyModifiers;
         _folder = working.SaveFolder;
         _accent = working.AccentColor;
         Resources["Accent"] = ToBrush(_accent); // live-tint the active controls
 
         ShowHotkey(HotkeyButton, _hkKey, _hkMods);
         ShowHotkey(HistoryHotkeyButton, _histKey, _histMods);
+        ShowHotkey(QuickCopyHotkeyButton, _quickKey, _quickMods);
+        ShowHotkey(FullScreenHotkeyButton, _fullKey, _fullMods);
         AskWhereSwitch.IsChecked = working.AskWhereToSave;
         CopyOnSaveSwitch.IsChecked = working.CopyToClipboardAlways;
         AutoStartSwitch.IsChecked = working.AutoStart;
@@ -241,6 +251,68 @@ public partial class SettingsWindow : Window
         }
     }
 
+    // -- Quick copy and Copy full screen hotkeys (optional; Backspace or Delete clears them) --
+    private void OnQuickCopyHotkeyFocus(object sender, RoutedEventArgs e) => EnterListening(QuickCopyHotkeyButton);
+
+    private void OnQuickCopyHotkeyClick(object sender, MouseButtonEventArgs e)
+    {
+        if (QuickCopyHotkeyButton.IsKeyboardFocused)
+            EnterListening(QuickCopyHotkeyButton);
+    }
+
+    private void OnQuickCopyHotkeyBlur(object sender, RoutedEventArgs e) =>
+        ShowHotkey(QuickCopyHotkeyButton, _quickKey, _quickMods);
+
+    private void OnQuickCopyHotkeyKeyDown(object sender, KeyEventArgs e) =>
+        OptionalKeyDown(e, QuickCopyHotkeyButton, ref _quickKey, ref _quickMods);
+
+    private void OnQuickCopyHotkeyKeyUp(object sender, KeyEventArgs e) =>
+        OptionalKeyUp(e, QuickCopyHotkeyButton, ref _quickKey, ref _quickMods);
+
+    private void OnFullScreenHotkeyFocus(object sender, RoutedEventArgs e) => EnterListening(FullScreenHotkeyButton);
+
+    private void OnFullScreenHotkeyClick(object sender, MouseButtonEventArgs e)
+    {
+        if (FullScreenHotkeyButton.IsKeyboardFocused)
+            EnterListening(FullScreenHotkeyButton);
+    }
+
+    private void OnFullScreenHotkeyBlur(object sender, RoutedEventArgs e) =>
+        ShowHotkey(FullScreenHotkeyButton, _fullKey, _fullMods);
+
+    private void OnFullScreenHotkeyKeyDown(object sender, KeyEventArgs e) =>
+        OptionalKeyDown(e, FullScreenHotkeyButton, ref _fullKey, ref _fullMods);
+
+    private void OnFullScreenHotkeyKeyUp(object sender, KeyEventArgs e) =>
+        OptionalKeyUp(e, FullScreenHotkeyButton, ref _fullKey, ref _fullMods);
+
+    /// <summary>Records a combination into an optional binding; Backspace/Delete clears it.</summary>
+    private void OptionalKeyDown(KeyEventArgs e, Button field, ref string key, ref string mods)
+    {
+        if (KeyOf(e) is Key.Back or Key.Delete)
+        {
+            e.Handled = true;
+            key = ""; mods = "None";
+            ShowHotkey(field, key, mods);
+            return;
+        }
+        if (ReadCombo(e, out var k, out var m))
+        {
+            key = k; mods = m;
+            ShowHotkey(field, key, mods);
+        }
+    }
+
+    /// <summary>Print Screen only ever raises KeyUp, so it has to be recorded here.</summary>
+    private void OptionalKeyUp(KeyEventArgs e, Button field, ref string key, ref string mods)
+    {
+        if (KeyOf(e) == Key.Snapshot && ReadCombo(e, out var k, out var m))
+        {
+            key = k; mods = m;
+            ShowHotkey(field, key, mods);
+        }
+    }
+
     // ---- Folder ----
     private string FolderDisplay() =>
         string.IsNullOrWhiteSpace(_folder)
@@ -334,6 +406,10 @@ public partial class SettingsWindow : Window
         _working.HotkeyModifiers = _hkMods;
         _working.HistoryHotkeyKey = _histKey;
         _working.HistoryHotkeyModifiers = _histMods;
+        _working.QuickCopyHotkeyKey = _quickKey;
+        _working.QuickCopyHotkeyModifiers = _quickMods;
+        _working.FullScreenHotkeyKey = _fullKey;
+        _working.FullScreenHotkeyModifiers = _fullMods;
         _working.AskWhereToSave = AskWhereSwitch.IsChecked == true;
         _working.SaveFolder = _folder;
         _working.SaveFormat = FmtJpg.IsChecked == true ? "Jpeg" : "Png";

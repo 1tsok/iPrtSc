@@ -7,21 +7,26 @@ namespace iPrtSc;
 /// <summary>
 /// Registers the app's global hotkeys via a hidden message window and raises an event
 /// when one fires: <see cref="CapturePressed"/> for Capture, <see cref="HistoryPressed"/>
-/// for the optional History hotkey.
+/// for the optional History hotkey, <see cref="QuickCopyPressed"/> for a no-editing capture
+/// and <see cref="FullScreenPressed"/> for the selection-free full screen copy.
 /// </summary>
 public sealed class HotkeyManager : IDisposable
 {
     private const int WM_HOTKEY = 0x0312;
     private const uint MOD_NOREPEAT = 0x4000;
 
-    // Distinct ids so the two hotkeys can be registered and identified independently.
+    // Distinct ids so the hotkeys can be registered and identified independently.
     private const int CaptureId = 0x4953; // 'IS'
     private const int HistoryId = 0x4954;
+    private const int QuickCopyId = 0x4955;
+    private const int FullScreenId = 0x4956;
 
     private readonly HwndSource _src;
 
     public event Action? CapturePressed;
     public event Action? HistoryPressed;
+    public event Action? QuickCopyPressed;
+    public event Action? FullScreenPressed;
 
     public HotkeyManager()
     {
@@ -52,6 +57,24 @@ public sealed class HotkeyManager : IDisposable
         if (string.IsNullOrWhiteSpace(s.HistoryHotkeyKey) || s.HistoryRetentionDays <= 0)
             return true;
         return RegisterOne(HistoryId, s.HistoryHotkeyKey, s.HistoryHotkeyModifiers);
+    }
+
+    /// <summary>
+    /// Registers the Quick copy hotkey if one is set. Unset is a no-op that returns true,
+    /// so the key stays free for other apps.
+    /// </summary>
+    public bool RegisterQuickCopy(AppSettings s) =>
+        RegisterOptional(QuickCopyId, s.QuickCopyHotkeyKey, s.QuickCopyHotkeyModifiers);
+
+    /// <summary>Registers the Copy full screen hotkey if one is set; see <see cref="RegisterQuickCopy"/>.</summary>
+    public bool RegisterFullScreen(AppSettings s) =>
+        RegisterOptional(FullScreenId, s.FullScreenHotkeyKey, s.FullScreenHotkeyModifiers);
+
+    private bool RegisterOptional(int id, string keyName, string modifiers)
+    {
+        NativeMethods.UnregisterHotKey(_src.Handle, id);
+        if (string.IsNullOrWhiteSpace(keyName)) return true;
+        return RegisterOne(id, keyName, modifiers);
     }
 
     private bool RegisterOne(int id, string keyName, string modifiers)
@@ -88,6 +111,8 @@ public sealed class HotkeyManager : IDisposable
     {
         NativeMethods.UnregisterHotKey(_src.Handle, CaptureId);
         NativeMethods.UnregisterHotKey(_src.Handle, HistoryId);
+        NativeMethods.UnregisterHotKey(_src.Handle, QuickCopyId);
+        NativeMethods.UnregisterHotKey(_src.Handle, FullScreenId);
         Logger.Log("HotkeyManager.UnregisterAll");
     }
 
@@ -106,6 +131,18 @@ public sealed class HotkeyManager : IDisposable
             {
                 Logger.Log("WM_HOTKEY received (History).");
                 HistoryPressed?.Invoke();
+                handled = true;
+            }
+            else if (id == QuickCopyId)
+            {
+                Logger.Log("WM_HOTKEY received (Quick copy).");
+                QuickCopyPressed?.Invoke();
+                handled = true;
+            }
+            else if (id == FullScreenId)
+            {
+                Logger.Log("WM_HOTKEY received (Full screen).");
+                FullScreenPressed?.Invoke();
                 handled = true;
             }
         }

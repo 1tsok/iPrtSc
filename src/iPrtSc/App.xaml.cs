@@ -77,6 +77,8 @@ public partial class App : Application
         _hotkey = new HotkeyManager();
         _hotkey.CapturePressed += OnHotkeyPressed;
         _hotkey.HistoryPressed += OnHistoryHotkeyPressed;
+        _hotkey.QuickCopyPressed += OnQuickCopyHotkeyPressed;
+        _hotkey.FullScreenPressed += OnFullScreenHotkeyPressed;
 
         bool ok = _hotkey.RegisterCapture(_settings);
         Logger.Log($"RegisterHotKey({_settings.HotkeyDisplay}) => {ok}");
@@ -87,6 +89,16 @@ public partial class App : Application
         Logger.Log($"RegisterHistoryHotKey({_settings.HistoryHotkeyDisplay}) => {histOk}");
         if (!histOk)
             WarnHotkeyFailed(_settings.HistoryHotkeyDisplay);
+
+        bool quickOk = _hotkey.RegisterQuickCopy(_settings);
+        Logger.Log($"RegisterQuickCopyHotKey({_settings.QuickCopyHotkeyDisplay}) => {quickOk}");
+        if (!quickOk)
+            WarnHotkeyFailed(_settings.QuickCopyHotkeyDisplay);
+
+        bool fullOk = _hotkey.RegisterFullScreen(_settings);
+        Logger.Log($"RegisterFullScreenHotKey({_settings.FullScreenHotkeyDisplay}) => {fullOk}");
+        if (!fullOk)
+            WarnHotkeyFailed(_settings.FullScreenHotkeyDisplay);
     }
 
     private void WarnHotkeyFailed(string display) =>
@@ -105,6 +117,18 @@ public partial class App : Application
         Logger.Log("History hotkey pressed.");
         if (_settings.HistoryRetentionDays > 0)
             ShowHistoryFlyout();
+    }
+
+    private void OnQuickCopyHotkeyPressed()
+    {
+        Logger.Log("Quick copy hotkey pressed.");
+        BeginCapture(quickCopy: true);
+    }
+
+    private void OnFullScreenHotkeyPressed()
+    {
+        Logger.Log("Full screen hotkey pressed.");
+        CopyFullScreen();
     }
 
     private void SetupTray()
@@ -139,7 +163,9 @@ public partial class App : Application
             menu.AddItem($"Download update v{_latestVersion}", "", OpenReleasesPage, badge: true);
             menu.AddSeparator();
         }
-        menu.AddItem("Capture", _settings.HotkeyDisplay, BeginCapture);
+        menu.AddItem("Capture", _settings.HotkeyDisplay, () => BeginCapture());
+        if (!string.IsNullOrWhiteSpace(_settings.QuickCopyHotkeyKey))
+            menu.AddItem("Quick copy", _settings.QuickCopyHotkeyDisplay, () => BeginCapture(quickCopy: true));
         if (_settings.HistoryRetentionDays > 0)
             menu.AddItem("History…", _settings.HistoryHotkeyDisplay, ShowHistoryFlyout);
         menu.AddItem("Settings…", "", OpenSettings);
@@ -301,10 +327,17 @@ public partial class App : Application
             // Re-register whether saved or cancelled, so the hotkeys are always live again.
             bool ok = _hotkey.RegisterCapture(_settings);
             bool histOk = _hotkey.RegisterHistory(_settings);
-            Logger.Log($"Settings closed. Re-register capture({_settings.HotkeyDisplay})={ok} history({_settings.HistoryHotkeyDisplay})={histOk}");
+            bool quickOk = _hotkey.RegisterQuickCopy(_settings);
+            bool fullOk = _hotkey.RegisterFullScreen(_settings);
+            Logger.Log($"Settings closed. Re-register capture({_settings.HotkeyDisplay})={ok} " +
+                       $"history({_settings.HistoryHotkeyDisplay})={histOk} " +
+                       $"quick({_settings.QuickCopyHotkeyDisplay})={quickOk} " +
+                       $"full({_settings.FullScreenHotkeyDisplay})={fullOk}");
             _tray.Text = TrayTooltip();
             if (!ok) WarnHotkeyFailed(_settings.HotkeyDisplay);
             if (!histOk) WarnHotkeyFailed(_settings.HistoryHotkeyDisplay);
+            if (!quickOk) WarnHotkeyFailed(_settings.QuickCopyHotkeyDisplay);
+            if (!fullOk) WarnHotkeyFailed(_settings.FullScreenHotkeyDisplay);
         }
     }
 
@@ -325,7 +358,34 @@ public partial class App : Application
         catch (Exception ex) { Logger.Log("OpenReleasesPage", ex); }
     }
 
-    private void BeginCapture()
+    /// <summary>
+    /// Copies the monitor under the cursor straight to the clipboard (and to History) with no
+    /// overlay and no selection. Skipped while the overlay is open, so it can't shoot itself.
+    /// </summary>
+    private void CopyFullScreen()
+    {
+        if (_overlay != null)
+        {
+            Logger.Log("CopyFullScreen skipped: overlay is open.");
+            return;
+        }
+
+        try
+        {
+            var cap = ScreenCapture.CaptureMonitorAtCursor();
+            Logger.Log($"Full screen copy {cap.bounds.Width}x{cap.bounds.Height} at ({cap.bounds.Left},{cap.bounds.Top}).");
+            ClipboardService.CopyImage(cap.src);
+            HistoryService.Archive(cap.src, _settings);
+            cap.bmp.Dispose();
+            _tray.ShowBalloonTip(1500, "iPrtSc", "Screen copied to clipboard", Forms.ToolTipIcon.Info);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("CopyFullScreen", ex);
+        }
+    }
+
+    private void BeginCapture(bool quickCopy = false)
     {
         if (_overlay != null)
         {
@@ -335,11 +395,11 @@ public partial class App : Application
 
         try
         {
-            Logger.Log("Capturing virtual screen...");
+            Logger.Log($"Capturing virtual screen... quickCopy={quickCopy}");
             var cap = ScreenCapture.CaptureVirtualScreen();
             Logger.Log($"Captured {cap.bounds.Width}x{cap.bounds.Height} at ({cap.bounds.Left},{cap.bounds.Top}).");
 
-            _overlay = new OverlayWindow(cap.bmp, cap.src, cap.bounds, _settings);
+            _overlay = new OverlayWindow(cap.bmp, cap.src, cap.bounds, _settings, quickCopy);
             _overlay.Saved += path =>
                 _tray.ShowBalloonTip(2500, "iPrtSc", $"Saved: {path}", Forms.ToolTipIcon.Info);
             _overlay.TextCopied += _ =>

@@ -17,6 +17,9 @@ area, annotate, grab text, then copy or save - all from the system tray.
 
 - **Global hotkey** to start a capture (configurable; default **Home**),
   full multi-monitor and DPI-aware (PerMonitor V2).
+- **Quick copy** - an optional hotkey that skips the editing panel: select a
+  region, release the mouse and it is already on the clipboard. A second
+  optional hotkey copies the whole monitor under the cursor with no selection.
 - **Adjustable selection** - drag the handles to resize, or drag inside to
   reposition.
 - **Annotation tools** - pen, marker, line, arrow, rectangle, ellipse, text,
@@ -66,6 +69,10 @@ in-app Settings window (tray → Settings).
   `PrintScreen`, `F9`).
 - `HotkeyModifiers` - `None`, or a comma-separated combination of
   `Control,Alt,Shift,Win`.
+- `QuickCopyHotkeyKey` / `QuickCopyHotkeyModifiers` - optional hotkey for a
+  capture that goes straight to the clipboard; leave the key empty for none.
+- `FullScreenHotkeyKey` / `FullScreenHotkeyModifiers` - optional hotkey that
+  copies the monitor under the cursor; leave the key empty for none.
 - `HistoryHotkeyKey` / `HistoryHotkeyModifiers` - optional hotkey that opens the
   History flyout; leave the key empty for none.
 

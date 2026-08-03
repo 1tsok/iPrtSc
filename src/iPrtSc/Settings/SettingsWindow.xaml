@@ -282,6 +282,24 @@
                                         GotFocus="OnHotkeyFocus" LostFocus="OnHotkeyBlur"
                                         Content="Home"/>
 
+                                <TextBlock Style="{StaticResource Label}" Text="Quick copy" Margin="0,14,0,6"/>
+                                <Button x:Name="QuickCopyHotkeyButton" Style="{StaticResource FieldBtn}"
+                                        PreviewKeyDown="OnQuickCopyHotkeyKeyDown" PreviewKeyUp="OnQuickCopyHotkeyKeyUp"
+                                        PreviewMouseLeftButtonDown="OnQuickCopyHotkeyClick"
+                                        GotFocus="OnQuickCopyHotkeyFocus" LostFocus="OnQuickCopyHotkeyBlur"
+                                        Content="None"/>
+                                <TextBlock Style="{StaticResource Sub}" Margin="2,6,0,0"
+                                           Text="Select a region and release the mouse - it goes straight to the clipboard, no editing panel."/>
+
+                                <TextBlock Style="{StaticResource Label}" Text="Copy full screen" Margin="0,14,0,6"/>
+                                <Button x:Name="FullScreenHotkeyButton" Style="{StaticResource FieldBtn}"
+                                        PreviewKeyDown="OnFullScreenHotkeyKeyDown" PreviewKeyUp="OnFullScreenHotkeyKeyUp"
+                                        PreviewMouseLeftButtonDown="OnFullScreenHotkeyClick"
+                                        GotFocus="OnFullScreenHotkeyFocus" LostFocus="OnFullScreenHotkeyBlur"
+                                        Content="None"/>
+                                <TextBlock Style="{StaticResource Sub}" Margin="2,6,0,0"
+                                           Text="Copies the monitor under the cursor to the clipboard at once, without a selection."/>
+
                                 <TextBlock Style="{StaticResource Label}" Text="Open history" Margin="0,14,0,6"/>
                                 <Button x:Name="HistoryHotkeyButton" Style="{StaticResource FieldBtn}"
                                         PreviewKeyDown="OnHistoryHotkeyKeyDown" PreviewKeyUp="OnHistoryHotkeyKeyUp"
