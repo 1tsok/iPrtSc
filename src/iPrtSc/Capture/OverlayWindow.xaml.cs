@@ -2103,6 +2103,18 @@ public partial class OverlayWindow : Window
         HintPill.Visibility = Visibility.Collapsed;
     }
 
+    /// <summary>
+    /// Dims the selection while recognition runs, so the wait reads at a glance and the
+    /// status pill has a dark backdrop to stand out against.
+    /// </summary>
+    private void ShowBusyVeil()
+    {
+        if (_sel.Width < 1 || _sel.Height < 1) return;
+        Place(DimBusy, _sel.X, _sel.Y, _sel.Width, _sel.Height);
+    }
+
+    private void HideBusyVeil() => Hide(DimBusy);
+
     // ===== OCR text grab =====
     /// <summary>Activates the Grab-text tool and recognizes the selection's text.</summary>
     private async System.Threading.Tasks.Task EnterOcrMode()
@@ -2123,9 +2135,11 @@ public partial class OverlayWindow : Window
         ClearOcr();
 
         ShowHint("Recognizing text…");
+        ShowBusyVeil();
         IReadOnlyList<OcrService.Word> words;
         try { words = await OcrService.RecognizeWordsAsync(CropPhoto()); }
         catch (Exception ex) { Logger.Log("EnsureOcrAsync", ex); ShowHint("Text recognition failed"); return false; }
+        finally { HideBusyVeil(); }
 
         _ocrDone = true;
         _ocrRect = _sel;

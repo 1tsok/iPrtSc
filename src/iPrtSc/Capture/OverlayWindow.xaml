@@ -179,6 +179,8 @@
             <Rectangle x:Name="DimLeft" Fill="#9B000000"/>
             <Rectangle x:Name="DimRight" Fill="#9B000000"/>
             <Rectangle x:Name="DimBottom" Fill="#9B000000"/>
+            <!-- Covers the selection itself while text recognition runs. -->
+            <Rectangle x:Name="DimBusy" Fill="#66000000" Visibility="Collapsed"/>
         </Canvas>
 
         <!-- Annotations (clipped to selection); hit-test enabled for the Move tool -->
