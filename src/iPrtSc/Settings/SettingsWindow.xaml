@@ -265,7 +265,7 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="24,24,24,12">
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="24,24,12,12">
                 <Grid>
 
                     <!-- Hotkeys -->
