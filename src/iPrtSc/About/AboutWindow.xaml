@@ -98,6 +98,14 @@
                                    RequestNavigate="OnNavigate">iPrtSc on GitHub</Hyperlink>
                     </TextBlock>
 
+                    <!-- Donation link: amber like the old toolbar button, kept out of the
+                         capture flow and out of the tray menu. -->
+                    <TextBlock FontSize="13" HorizontalAlignment="Center" Margin="0,6,0,0">
+                        <Hyperlink NavigateUri="https://send.monobank.ua/jar/3uGTTGtrPk"
+                                   Foreground="#FFFFB84D" TextDecorations="None"
+                                   RequestNavigate="OnNavigate">Buy me a coffee ☕</Hyperlink>
+                    </TextBlock>
+
                     <TextBlock x:Name="CopyrightText" Foreground="#FF6E6E73" FontSize="12"
                                HorizontalAlignment="Center" Margin="0,16,0,0"/>
                 </StackPanel>

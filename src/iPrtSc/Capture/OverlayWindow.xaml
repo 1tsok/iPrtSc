@@ -155,6 +155,13 @@
             <Setter Property="Background" Value="#26FFFFFF"/>
         </Style>
 
+        <!-- Vertical separator (inside horizontal panel) -->
+        <Style x:Key="VSep" TargetType="Border">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Margin" Value="3,4"/>
+            <Setter Property="Background" Value="#26FFFFFF"/>
+        </Style>
+
         <Style x:Key="Panel" TargetType="Border">
             <Setter Property="CornerRadius" Value="11"/>
             <Setter Property="Padding" Value="6"/>
@@ -176,7 +183,7 @@
         <!-- Spotlight dimming. The veil never moves; the selection reads through it because
              a second copy of the same screenshot is drawn on top, clipped to the region.
              Resizing four dim bands around the selection instead would repaint the whole
-             desktop on every mouse move, which stalls the drag over a remote session. -->
+             desktop on every mouse move, which stalls the drag. -->
         <Rectangle x:Name="DimVeil" Fill="#9B000000" IsHitTestVisible="False"/>
         <Image x:Name="ClearImage" Stretch="Fill" IsHitTestVisible="False" Visibility="Collapsed"/>
 
@@ -233,9 +240,9 @@
 
         <!-- Panels -->
         <Canvas x:Name="UiCanvas">
-            <!-- Vertical tools panel (right of selection) -->
+            <!-- Horizontal tools panel (below the selection) -->
             <Border x:Name="ToolPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
-                <StackPanel Orientation="Vertical">
+                <StackPanel Orientation="Horizontal">
                     <ToggleButton x:Name="ToolSelect" Style="{StaticResource ToolToggle}" Tag="Select" ToolTip="Select area (C)" Click="OnToolClick">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
                             <Path Style="{StaticResource Icon}" Data="M6 2v14a2 2 0 0 0 2 2h14 M18 22V8a2 2 0 0 0-2-2H2"/>
@@ -246,6 +253,8 @@
                             <Path Style="{StaticResource Icon}" Data="M5 3l6.9 16.6 2.4-7.3 7.3-2.4z"/>
                         </Canvas></Viewbox>
                     </ToggleButton>
+                    <Border Style="{StaticResource VSep}"/>
+
                     <ToggleButton x:Name="ToolPen" Style="{StaticResource ToolToggle}" Tag="Pen" ToolTip="Pen (P)" Click="OnToolClick">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
                             <Path Style="{StaticResource Icon}" Data="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z M15 5l4 4"/>
@@ -263,6 +272,8 @@
                             <Path Style="{StaticResource Icon}" Data="M3 9.5a6.5 6.5 0 1 0 13 0 6.5 6.5 0 1 0-13 0z M12 12h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z"/>
                         </Canvas></Viewbox>
                     </ToggleButton>
+                    <Border Style="{StaticResource VSep}"/>
+
                     <ToggleButton x:Name="ToolText" Style="{StaticResource ToolToggle}" Tag="Text" ToolTip="Text (T)" Click="OnToolClick">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
                             <Path Style="{StaticResource Icon}" Data="M4 7V4h16v3 M9 20h6 M12 4v16"/>
@@ -280,6 +291,8 @@
                             <Path Style="{StaticResource Icon}" Data="M5 22h14 M19.27 13.73A2.5 2.5 0 0 0 17.5 13h-11A2.5 2.5 0 0 0 4 15.5V17a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1.5c0-.66-.26-1.3-.73-1.77 M14 13V8.5C14 7 15 7 15 5a3 3 0 0 0-6 0c0 2 1 2 1 3.5V13"/>
                         </Canvas></Viewbox>
                     </ToggleButton>
+                    <Border Style="{StaticResource VSep}"/>
+
                     <ToggleButton x:Name="ToolBlur" Style="{StaticResource ToolToggle}" Tag="Blur" ToolTip="Pixelate area (B)" Click="OnToolClick">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
                             <Path Style="{StaticResource IconFill}" Data="M3.5 5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M10.5 5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M17.5 5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M3.5 12a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M10.5 12a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M17.5 12a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M3.5 19a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M10.5 19a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0 M17.5 19a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0"/>
@@ -291,7 +304,7 @@
                         </Canvas></Viewbox>
                     </ToggleButton>
 
-                    <Border Style="{StaticResource HSep}"/>
+                    <Border Style="{StaticResource VSep}"/>
 
                     <Button x:Name="ColorButton" Style="{StaticResource ToolBtn}" Margin="1" ToolTip="Color" Click="OnColorButtonClick">
                         <!-- Hairline ring in the app's chrome tone (not stark white); still defines the
@@ -300,7 +313,7 @@
                                  Stroke="#40FFFFFF" StrokeThickness="1"/>
                     </Button>
 
-                    <Border Style="{StaticResource HSep}"/>
+                    <Border Style="{StaticResource VSep}"/>
 
                     <Button x:Name="UndoBtn" Style="{StaticResource ToolBtn}" Margin="1" ToolTip="Undo (Ctrl+Z)" Click="OnUndo">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
@@ -310,6 +323,32 @@
                     <Button x:Name="RedoBtn" Style="{StaticResource ToolBtn}" Margin="1" ToolTip="Redo (Ctrl+Y)" Click="OnRedo">
                         <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
                             <Path Style="{StaticResource Icon}" Data="M15 14 20 9l-5-5 M20 9H9.5A5.5 5.5 0 0 0 4 14.5 5.5 5.5 0 0 0 9.5 20H13"/>
+                        </Canvas></Viewbox>
+                    </Button>
+
+                    <!-- Finishing actions: a wider gap sets them apart from the making-marks
+                         half of the bar. -->
+                    <Border Width="14"/>
+
+                    <Button Style="{StaticResource ToolBtn}" ToolTip="Copy (Enter)" Click="OnCopy">
+                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
+                            <!-- Shifted 1px right of the source icon: its ink spans x 2..20, which
+                                 sits off-center in the 24-wide canvas and reads as leaning left. -->
+                            <Path Style="{StaticResource Icon}" Data="M9 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z M5 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2"/>
+                        </Canvas></Viewbox>
+                    </Button>
+                    <Button Style="{StaticResource ToolBtn}" ToolTip="Save (Ctrl+S)" Click="OnSave">
+                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
+                            <Path Style="{StaticResource Icon}" Data="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7 M7 3v4a1 1 0 0 0 1 1h7"/>
+                        </Canvas></Viewbox>
+                    </Button>
+
+                    <Border Style="{StaticResource VSep}"/>
+
+                    <!-- Discarding the shot is set apart and dimmed: never a mis-click away from Copy. -->
+                    <Button Style="{StaticResource ToolBtn}" Foreground="#FF9AA0A6" ToolTip="Cancel (Esc)" Click="OnCancel">
+                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
+                            <Path Style="{StaticResource Icon}" Data="M18 6 6 18 M6 6 18 18"/>
                         </Canvas></Viewbox>
                     </Button>
                 </StackPanel>
@@ -410,34 +449,6 @@
                 </StackPanel>
             </Border>
 
-            <!-- Save / actions panel (bottom-right of selection) -->
-            <Border x:Name="ActionPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
-                <StackPanel Orientation="Horizontal">
-                    <!-- Buy me a coffee — amber tint + a one-button gap so it never blends with the capture actions -->
-                    <Button Style="{StaticResource ToolBtn}" Foreground="#FFFFB84D" ToolTip="Buy me a coffee ☕" Click="OnBuyCoffee">
-                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
-                            <Path Style="{StaticResource Icon}" Data="M6 2v2 M10 2v2 M14 2v2 M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 0 1 0 8h-1"/>
-                        </Canvas></Viewbox>
-                    </Button>
-                    <Border Width="26"/>
-                    <Button Style="{StaticResource ToolBtn}" ToolTip="Copy (Enter)" Click="OnCopy">
-                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
-                            <Path Style="{StaticResource Icon}" Data="M8 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z M4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2"/>
-                        </Canvas></Viewbox>
-                    </Button>
-                    <Button Style="{StaticResource ToolBtn}" ToolTip="Save (Ctrl+S)" Click="OnSave">
-                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
-                            <Path Style="{StaticResource Icon}" Data="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7 M7 3v4a1 1 0 0 0 1 1h7"/>
-                        </Canvas></Viewbox>
-                    </Button>
-                    <Border Width="1" Margin="3,4" Background="#26FFFFFF"/>
-                    <Button Style="{StaticResource ToolBtn}" ToolTip="Cancel (Esc)" Click="OnCancel">
-                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
-                            <Path Style="{StaticResource Icon}" Data="M18 6 6 18 M6 6 18 18"/>
-                        </Canvas></Viewbox>
-                    </Button>
-                </StackPanel>
-            </Border>
         </Canvas>
 
         <!-- Brush-size cursor -->

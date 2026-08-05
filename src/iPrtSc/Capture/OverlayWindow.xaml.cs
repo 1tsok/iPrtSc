@@ -257,7 +257,6 @@ public partial class OverlayWindow : Window
         _dragging = true;
         _start = p;
         ToolPanel.Visibility = Visibility.Collapsed;
-        ActionPanel.Visibility = Visibility.Collapsed;
         foreach (var h in _handles) h.Visibility = Visibility.Collapsed;
         Hit.CaptureMouse();
     }
@@ -418,9 +417,7 @@ public partial class OverlayWindow : Window
             }
             if (_sel.Width >= 4 && _sel.Height >= 4)
             {
-                ToolPanel.Visibility = Visibility.Visible;
-                ActionPanel.Visibility = Visibility.Visible;
-                PositionPanels();
+                ShowToolBar();
                 ShowHandles();
             }
             else
@@ -836,9 +833,7 @@ public partial class OverlayWindow : Window
         ClearAnnotations();
         _sel = new Rect(0, 0, Root.ActualWidth, Root.ActualHeight);
         UpdateSelection();
-        ToolPanel.Visibility = Visibility.Visible;
-        ActionPanel.Visibility = Visibility.Visible;
-        PositionPanels();
+        ShowToolBar();
         ShowHandles();
     }
 
@@ -945,21 +940,7 @@ public partial class OverlayWindow : Window
         StampGroup.IsChecked = _tool == Tool.Stamp;
     }
 
-    private void ShowStampFlyout()
-    {
-        StampFlyout.Visibility = Visibility.Visible;
-        StampFlyout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        double fw = StampFlyout.DesiredSize.Width, fh = StampFlyout.DesiredSize.Height;
-
-        var anchor = StampGroup.TransformToAncestor(Root).Transform(new Point(0, 0));
-        double x = anchor.X - fw - 6;
-        if (x < 8) x = anchor.X + StampGroup.ActualWidth + 6;
-        double y = anchor.Y + StampGroup.ActualHeight / 2 - fh / 2;
-        y = Math.Max(8, Math.Min(y, Root.ActualHeight - fh - 8));
-
-        Canvas.SetLeft(StampFlyout, x);
-        Canvas.SetTop(StampFlyout, y);
-    }
+    private void ShowStampFlyout() => PlaceFlyout(StampFlyout, StampGroup);
 
     private void HideStampFlyout() => StampFlyout.Visibility = Visibility.Collapsed;
 
@@ -1576,38 +1557,35 @@ public partial class OverlayWindow : Window
         }
         HideShapesFlyout();
 
-        ColorFlyout.Visibility = Visibility.Visible;
-        ColorFlyout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        double fw = ColorFlyout.DesiredSize.Width, fh = ColorFlyout.DesiredSize.Height;
-
-        // Anchor to the left of the color button, vertically centered on it.
-        var anchor = ColorButton.TransformToAncestor(Root).Transform(new Point(0, 0));
-        double x = anchor.X - fw - 6;
-        if (x < 8) x = anchor.X + ColorButton.ActualWidth + 6; // fall back to the right
-        double y = anchor.Y + ColorButton.ActualHeight / 2 - fh / 2;
-        y = Math.Max(8, Math.Min(y, Root.ActualHeight - fh - 8));
-
-        Canvas.SetLeft(ColorFlyout, x);
-        Canvas.SetTop(ColorFlyout, y);
+        PlaceFlyout(ColorFlyout, ColorButton);
     }
 
     private void HideColorFlyout() => ColorFlyout.Visibility = Visibility.Collapsed;
 
-    private void ShowShapesFlyout()
-    {
-        ShapesFlyout.Visibility = Visibility.Visible;
-        ShapesFlyout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        double fw = ShapesFlyout.DesiredSize.Width, fh = ShapesFlyout.DesiredSize.Height;
+    private void ShowShapesFlyout() => PlaceFlyout(ShapesFlyout, ShapesGroup);
 
-        // Anchor to the left of the shapes button, vertically centered on it.
-        var anchor = ShapesGroup.TransformToAncestor(Root).Transform(new Point(0, 0));
-        double x = anchor.X - fw - 6;
-        if (x < 8) x = anchor.X + ShapesGroup.ActualWidth + 6; // fall back to the right
-        double y = anchor.Y + ShapesGroup.ActualHeight / 2 - fh / 2;
+    /// <summary>
+    /// Opens a flyout off the tools bar: centered on the button it belongs to and on the
+    /// bar's outer side, so it never covers the shot. Falls back to the other side when
+    /// that one is off screen.
+    /// </summary>
+    private void PlaceFlyout(Border flyout, FrameworkElement button)
+    {
+        flyout.Visibility = Visibility.Visible;
+        flyout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double fw = flyout.DesiredSize.Width, fh = flyout.DesiredSize.Height;
+
+        var anchor = button.TransformToAncestor(Root).Transform(new Point(0, 0));
+        double x = anchor.X + button.ActualWidth / 2 - fw / 2;
+        x = Math.Max(8, Math.Min(x, Root.ActualWidth - fw - 8));
+
+        double top = Canvas.GetTop(ToolPanel), bottom = top + ToolPanel.ActualHeight;
+        double y = _toolsAbove ? top - fh - 6 : bottom + 6;
+        if (y < 8 || y + fh > Root.ActualHeight - 8) y = _toolsAbove ? bottom + 6 : top - fh - 6;
         y = Math.Max(8, Math.Min(y, Root.ActualHeight - fh - 8));
 
-        Canvas.SetLeft(ShapesFlyout, x);
-        Canvas.SetTop(ShapesFlyout, y);
+        Canvas.SetLeft(flyout, x);
+        Canvas.SetTop(flyout, y);
     }
 
     private void HideShapesFlyout() => ShapesFlyout.Visibility = Visibility.Collapsed;
@@ -1650,10 +1628,18 @@ public partial class OverlayWindow : Window
         SelBorder.Visibility = Visibility.Collapsed;
         SizeLabel.Visibility = Visibility.Collapsed;
         ToolPanel.Visibility = Visibility.Collapsed;
-        ActionPanel.Visibility = Visibility.Collapsed;
         HideFlyouts();
         foreach (var h in _handles) h.Visibility = Visibility.Collapsed;
         UpdateDim(Rect.Empty);
+    }
+
+    /// <summary>Set when the tools bar had to flip above the selection; flyouts follow it.</summary>
+    private bool _toolsAbove;
+
+    private void ShowToolBar()
+    {
+        ToolPanel.Visibility = Visibility.Visible;
+        PositionPanels();
     }
 
     private void PositionPanels()
@@ -1661,24 +1647,16 @@ public partial class OverlayWindow : Window
         // Must clear the resize handles, which stick out past the selection edge.
         const double gap = 10;
 
+        // One bar for everything, centered under the selection.
         ToolPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         double tw = ToolPanel.DesiredSize.Width, th = ToolPanel.DesiredSize.Height;
-        double tx = _sel.Right + gap;
-        if (tx + tw > Root.ActualWidth - 8) tx = _sel.Left - tw - gap;       // flip to the left
-        tx = Math.Max(8, Math.Min(tx, Root.ActualWidth - tw - 8));
-        // Anchor the panel to the bottom-right corner of the selection (grows upward).
-        double ty = Math.Max(8, Math.Min(_sel.Bottom - th, Root.ActualHeight - th - 8));
+        double tx = Math.Max(8, Math.Min(_sel.Left + _sel.Width / 2 - tw / 2, Root.ActualWidth - tw - 8));
+        double ty = _sel.Bottom + gap;
+        _toolsAbove = ty + th > Root.ActualHeight - 8;
+        if (_toolsAbove) ty = _sel.Top - th - gap;                            // flip above
+        ty = Math.Max(8, Math.Min(ty, Root.ActualHeight - th - 8));
         Canvas.SetLeft(ToolPanel, tx);
         Canvas.SetTop(ToolPanel, ty);
-
-        ActionPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        double aw = ActionPanel.DesiredSize.Width, ah = ActionPanel.DesiredSize.Height;
-        double ax = Math.Max(8, Math.Min(_sel.Right - aw, Root.ActualWidth - aw - 8));
-        double ay = _sel.Bottom + gap;
-        if (ay + ah > Root.ActualHeight - 8) ay = _sel.Top - ah - gap;        // flip above
-        ay = Math.Max(8, Math.Min(ay, Root.ActualHeight - ah - 8));
-        Canvas.SetLeft(ActionPanel, ax);
-        Canvas.SetTop(ActionPanel, ay);
     }
 
     private void UpdateDim(Rect s)
@@ -2013,27 +1991,6 @@ public partial class OverlayWindow : Window
     private void OnCopy(object sender, RoutedEventArgs e) => DoCopy();
     private void OnSave(object sender, RoutedEventArgs e) => DoSave();
     private void OnCancel(object sender, RoutedEventArgs e) => Close();
-
-    private const string BuyMeACoffeeUrl = "https://send.monobank.ua/jar/3uGTTGtrPk";
-
-    private void OnBuyCoffee(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(BuyMeACoffeeUrl) { UseShellExecute = true });
-            // The fullscreen topmost overlay would hide the browser and block a new capture,
-            // so the capture ends here — but the work in progress goes to History first,
-            // otherwise the annotations would be lost with the window.
-            if (_sel.Width >= 1 && _sel.Height >= 1) HistoryService.Archive(ComposeSelection(), _settings);
-            Close();
-        }
-        catch (Exception ex)
-        {
-            Logger.Log("OnBuyCoffee", ex);
-            ClipboardService.CopyText(BuyMeACoffeeUrl);
-            ShowHint("Could not open the browser - link copied to clipboard", TimeSpan.FromSeconds(4));
-        }
-    }
 
     /// <summary>
     /// Quick copy: the region goes to the clipboard and History, a "Copied" flash confirms it
