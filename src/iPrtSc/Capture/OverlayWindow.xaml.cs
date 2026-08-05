@@ -18,10 +18,15 @@ namespace iPrtSc;
 
 public partial class OverlayWindow : Window
 {
-    private enum Tool { Select, Pen, Marker, Line, Arrow, Rect, Ellipse, Text, OcrText, Counter, Stamp, Blur, Move }
+    private enum Tool { Select, Pen, Marker, Line, Arrow, Rect, Ellipse, Text, OcrText, Counter, Stamp, Blur, Move, Picker }
 
     // The highlighter draws much wider than the nominal brush thickness.
     private const double MarkerScale = 3.0;
+
+    // Eyedropper loupe: screenshot pixels shown across, and the on-screen size of that
+    // square (the XAML sizes match; the ratio is the zoom factor).
+    private const int LoupePixels = 15;
+    private const double LoupeSize = 120;
 
     // Default palette, laid out as a 6-column grid (greys, warm, cool, deep, pastel).
     private static readonly string[] ColorPresets =
@@ -61,6 +66,7 @@ public partial class OverlayWindow : Window
 
     private Tool _tool = Tool.Select;
     private Tool _shape = Tool.Arrow;   // last shape picked from the shapes group
+    private Tool _beforePicker = Tool.Select;   // restored after a colour is picked
     private string _colorHex = "#FFE81123";   // red, also present in ColorPresets
     private double _thickness = 4;
     private int _counter = 1;
@@ -184,6 +190,10 @@ public partial class OverlayWindow : Window
         var p = e.GetPosition(Root);
         FlushMove(p);
         HideFlyouts();
+
+        // The eyedropper reads anywhere on the shot, inside the region or out on the dimmed
+        // backdrop, and never starts a selection or an annotation.
+        if (_tool == Tool.Picker) { PickColor(p); return; }
 
         if (_tool == Tool.Move)
         {
@@ -902,6 +912,8 @@ public partial class OverlayWindow : Window
     private void SelectTool(Tool tool, ToggleButton checkedBtn)
     {
         EndTextEdit();   // picking another tool finishes whatever was being typed
+        // Remember what to hand the pointer back to once a colour has been sampled.
+        if (tool == Tool.Picker && _tool != Tool.Picker) _beforePicker = _tool;
         _tool = tool;
         foreach (var tb in ToolToggles())
             tb.IsChecked = ReferenceEquals(tb, checkedBtn);
@@ -1311,7 +1323,23 @@ public partial class OverlayWindow : Window
     }
 
     private IEnumerable<ToggleButton> ToolToggles() => new[]
-        { ToolSelect, ToolPen, ToolMarker, ShapesGroup, ToolText, ToolOcr, ToolCounter, StampGroup, ToolBlur, ToolMove };
+        { ToolSelect, ToolPen, ToolMarker, ShapesGroup, ToolText, ToolOcr, ToolCounter, StampGroup, ToolBlur, ToolMove, ToolPicker };
+
+    /// <summary>The bar button standing for a tool (shapes and stamps share a group button).</summary>
+    private ToggleButton ButtonFor(Tool t) => t switch
+    {
+        Tool.Pen => ToolPen,
+        Tool.Marker => ToolMarker,
+        Tool.Line or Tool.Arrow or Tool.Rect or Tool.Ellipse => ShapesGroup,
+        Tool.Text => ToolText,
+        Tool.OcrText => ToolOcr,
+        Tool.Counter => ToolCounter,
+        Tool.Stamp => StampGroup,
+        Tool.Blur => ToolBlur,
+        Tool.Move => ToolMove,
+        Tool.Picker => ToolPicker,
+        _ => ToolSelect,
+    };
 
     private static bool UsesBrush(Tool t) =>
         t is Tool.Pen or Tool.Marker or Tool.Line or Tool.Arrow or Tool.Rect or Tool.Ellipse;
@@ -1321,6 +1349,19 @@ public partial class OverlayWindow : Window
 
     private void UpdateCursor(Point p)
     {
+        // The eyedropper replaces every other cursor affordance with its loupe, and unlike the
+        // drawing tools it stays armed over the dimmed backdrop too.
+        if (_tool == Tool.Picker)
+        {
+            BrushCursor.Visibility = Visibility.Collapsed;
+            TextCursor.Visibility = Visibility.Collapsed;
+            Hit.Cursor = Cursors.Cross;
+            // Over the toolbar (which sits above the hit surface) there is nothing to sample.
+            if (Hit.IsMouseOver) ShowLoupe(p); else Loupe.Visibility = Visibility.Collapsed;
+            return;
+        }
+        Loupe.Visibility = Visibility.Collapsed;
+
         // Keep the move cursor steady while dragging the selection, even when the clamped
         // region briefly trails the pointer at a desktop edge.
         if (_movingSel) { BrushCursor.Visibility = Visibility.Collapsed; Hit.Cursor = Cursors.SizeAll; return; }
@@ -1415,6 +1456,84 @@ public partial class OverlayWindow : Window
                              || _stamps.Any(s => s.Contains(p)) => Cursors.SizeAll,
                 _ => Cursors.Cross
             };
+    }
+
+    private void OnHitLeave(object sender, MouseEventArgs e) => Loupe.Visibility = Visibility.Collapsed;
+
+    // ===== Eyedropper =====
+    // Everything here reads the screenshot itself, never the rendered overlay, so the dim
+    // veil and the annotations drawn on top can't tint what the user is shown or handed.
+
+    /// <summary>The screenshot pixel under an overlay point, in device pixels.</summary>
+    private (int X, int Y) PixelAt(Point p) =>
+        (Math.Clamp((int)(p.X * _scale), 0, _src.PixelWidth - 1),
+         Math.Clamp((int)(p.Y * _scale), 0, _src.PixelHeight - 1));
+
+    private Color SampleColor(Point p)
+    {
+        var (x, y) = PixelAt(p);
+        var px = new byte[4];
+        _src.CopyPixels(new Int32Rect(x, y, 1, 1), px, 4, 0);   // Bgr32, as captured
+        return Color.FromRgb(px[2], px[1], px[0]);
+    }
+
+    private static string Hex(Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+
+    /// <summary>
+    /// Parks the loupe beside the pointer and refills it: a crop of the screenshot around
+    /// the cursor, scaled up with no filtering so the pixels stay square, plus the reading.
+    /// </summary>
+    private void ShowLoupe(Point p)
+    {
+        var (cx, cy) = PixelAt(p);
+        var c = SampleColor(p);
+        LoupeHex.Text = Hex(c);
+        LoupeChip.Background = new SolidColorBrush(c);
+
+        int n = Math.Min(LoupePixels, Math.Min(_src.PixelWidth, _src.PixelHeight));
+        int x0 = Math.Clamp(cx - n / 2, 0, _src.PixelWidth - n);
+        int y0 = Math.Clamp(cy - n / 2, 0, _src.PixelHeight - n);
+        var crop = new CroppedBitmap(_src, new Int32Rect(x0, y0, n, n));
+        crop.Freeze();
+        LoupeImage.Source = crop;
+
+        // Within half a loupe of a screen edge the crop stops sliding, so the ring has to
+        // track the sampled pixel inside it rather than sitting in the middle.
+        double cell = LoupeSize / n;
+        foreach (var ring in new[] { LoupeCellShadow, LoupeCell })
+        {
+            ring.Width = cell;
+            ring.Height = cell;
+            Canvas.SetLeft(ring, (cx - x0) * cell);
+            Canvas.SetTop(ring, (cy - y0) * cell);
+        }
+
+        Loupe.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double lw = Loupe.DesiredSize.Width, lh = Loupe.DesiredSize.Height;
+        const double reach = 11;   // just clear of the crosshair, so the eye travels less
+        double lx = p.X + reach, ly = p.Y + reach;
+        if (lx + lw > Root.ActualWidth - 8) lx = p.X - reach - lw;      // flip rather than clamp, so
+        if (ly + lh > Root.ActualHeight - 8) ly = p.Y - reach - lh;     // the pointer is never covered
+        Canvas.SetLeft(Loupe, Math.Max(8, lx));
+        Canvas.SetTop(Loupe, Math.Max(8, ly));
+        Loupe.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>
+    /// Takes the colour under the pointer: it becomes the drawing colour and lands on the
+    /// clipboard as #RRGGBB. The previous tool comes back, so a pick is a detour, not a mode.
+    /// </summary>
+    private void PickColor(Point p)
+    {
+        var c = SampleColor(p);
+        _colorHex = $"#FF{c.R:X2}{c.G:X2}{c.B:X2}";
+        ColorDot.Fill = ToBrush(_colorHex);
+        RefreshColorSelection();
+        ClipboardService.CopyText(Hex(c));
+
+        var back = _beforePicker is Tool.Picker or Tool.OcrText ? Tool.Select : _beforePicker;
+        SelectTool(back, ButtonFor(back));   // also hides the loupe
+        ShowHint($"{Hex(c)} copied", TimeSpan.FromMilliseconds(1100));
     }
 
     private void OnWheel(object sender, MouseWheelEventArgs e)
@@ -1615,9 +1734,14 @@ public partial class OverlayWindow : Window
             SizeText.Text = size;
             SizeLabel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         }
+        // Centered over the selection, mirroring the tools bar below it: size on top, tools
+        // underneath, both on the same axis. Clamped so a region at a screen edge keeps it on
+        // screen instead of pushing it into the corner.
+        double lw = SizeLabel.DesiredSize.Width;
+        double lx = Math.Max(8, Math.Min(_sel.X + (_sel.Width - lw) / 2, Root.ActualWidth - lw - 8));
         double ly = _sel.Y - SizeLabel.DesiredSize.Height - 6;
         if (ly < 4) ly = _sel.Y + 6;
-        Canvas.SetLeft(SizeLabel, _sel.X);
+        Canvas.SetLeft(SizeLabel, lx);
         Canvas.SetTop(SizeLabel, ly);
 
         PositionHandles();
@@ -2369,6 +2493,7 @@ public partial class OverlayWindow : Window
             case Key.T: SelectTool(Tool.Text, ToolText); return true;
             case Key.N: SelectTool(Tool.Counter, ToolCounter); return true;
             case Key.B: SelectTool(Tool.Blur, ToolBlur); return true;
+            case Key.I: SelectTool(Tool.Picker, ToolPicker); return true;
             case Key.G: _ = EnterOcrMode(); return true;
             case Key.A: PickShape(Tool.Arrow); return true;
             case Key.L: PickShape(Tool.Line); return true;

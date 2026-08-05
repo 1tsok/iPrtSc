@@ -205,7 +205,7 @@
              because no region exists yet. -->
         <Border x:Name="Hit" Background="Transparent" Cursor="Cross"
                 MouseLeftButtonDown="OnMouseDown" MouseMove="OnMouseMove" MouseLeftButtonUp="OnMouseUp"
-                MouseRightButtonUp="OnRightClick"/>
+                MouseRightButtonUp="OnRightClick" MouseLeave="OnHitLeave"/>
 
         <!-- Selection border + size label -->
         <Canvas x:Name="SelCanvas" IsHitTestVisible="False">
@@ -305,6 +305,14 @@
                     </ToggleButton>
 
                     <Border Style="{StaticResource VSep}"/>
+
+                    <!-- Sits next to the colour dot: picking a colour is how you fill it. -->
+                    <ToggleButton x:Name="ToolPicker" Style="{StaticResource ToolToggle}" Tag="Picker"
+                                  ToolTip="Pick color (I) - click samples the pixel and copies its hex" Click="OnToolClick">
+                        <Viewbox Width="19" Height="19"><Canvas Width="24" Height="24">
+                            <Path Style="{StaticResource Icon}" Data="M2 22l1-1h3l9-9 M3 21v-3l9-9 M15 6l3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3z"/>
+                        </Canvas></Viewbox>
+                    </ToggleButton>
 
                     <Button x:Name="ColorButton" Style="{StaticResource ToolBtn}" Margin="1" ToolTip="Color" Click="OnColorButtonClick">
                         <!-- Hairline ring in the app's chrome tone (not stark white); still defines the
@@ -466,6 +474,36 @@
                     <DropShadowEffect BlurRadius="3" ShadowDepth="0" Color="Black" Opacity="0.7"/>
                 </Path.Effect>
             </Path>
+
+            <!-- Eyedropper loupe: a nearest-neighbour blow-up of the screenshot around the
+                 pointer, with the pixel a click would take ringed and spelled out in hex. -->
+            <Border x:Name="Loupe" Style="{StaticResource Panel}" Padding="5"
+                    Visibility="Collapsed" IsHitTestVisible="False">
+                <StackPanel>
+                    <Border CornerRadius="7" BorderBrush="#26FFFFFF" BorderThickness="1">
+                        <Canvas x:Name="LoupeCanvas" Width="120" Height="120">
+                            <!-- A Border's CornerRadius doesn't clip its children, so the zoom
+                                 needs its own rounded clip to follow the frame. -->
+                            <Canvas.Clip>
+                                <RectangleGeometry Rect="0,0,120,120" RadiusX="6" RadiusY="6"/>
+                            </Canvas.Clip>
+                            <Image x:Name="LoupeImage" Width="120" Height="120"
+                                   RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                            <!-- Black under white so the ring stays visible on either extreme. -->
+                            <Rectangle x:Name="LoupeCellShadow" Width="8" Height="8"
+                                       Stroke="#B0000000" StrokeThickness="3"/>
+                            <Rectangle x:Name="LoupeCell" Width="8" Height="8"
+                                       Stroke="#FFFFFFFF" StrokeThickness="1.5"/>
+                        </Canvas>
+                    </Border>
+                    <StackPanel Orientation="Horizontal" Margin="2,7,2,1">
+                        <Border x:Name="LoupeChip" Width="14" Height="14" CornerRadius="4"
+                                BorderBrush="#40FFFFFF" BorderThickness="1" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LoupeHex" Text="#000000" Foreground="#FFF1F1F1" FontSize="12.5"
+                                   FontFamily="Consolas, Segoe UI" Margin="7,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </Canvas>
     </Grid>
 </Window>
