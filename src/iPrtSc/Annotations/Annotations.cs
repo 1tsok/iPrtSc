@@ -430,20 +430,13 @@ public sealed class CounterAnnotation : Annotation
     private readonly Grid _grid;
     public override UIElement Element => _grid;
 
-    private const double Ring = 2;   // circle outline thickness
-
     public CounterAnnotation(Brush fill, int number, double diameter)
     {
         bool darkInk = IsLight(fill);
         Brush ink = darkInk ? new SolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x1A)) : Brushes.White;
 
         _grid = new Grid { Width = diameter, Height = diameter };
-        _grid.Children.Add(new Ellipse
-        {
-            Fill = fill,
-            Stroke = ink,
-            StrokeThickness = Ring
-        });
+        _grid.Children.Add(new Ellipse { Fill = fill });
         _grid.Children.Add(new Canvas
         {
             Width = diameter,
@@ -472,9 +465,9 @@ public sealed class CounterAnnotation : Annotation
         var b = geo.Bounds;
         if (b.IsEmpty) return new Path { Data = geo, Fill = ink };
 
-        // Fit the ink box inside the circle: its corners must stay within the radius left by
-        // the ring (plus a hair of breathing room), which is what keeps 100 or 999 off the outline.
-        double rInner = diameter / 2 - Ring - diameter * 0.04;
+        // Fit the ink box inside the circle: its corners must stay inside the radius minus a
+        // margin, which is what keeps 100 or 999 off the edge.
+        double rInner = diameter / 2 - diameter * 0.08;
         double scale = Math.Min(1.0, 2 * rInner / Math.Sqrt(b.Width * b.Width + b.Height * b.Height));
         var tg = new TransformGroup();
         tg.Children.Add(new ScaleTransform(scale, scale));
