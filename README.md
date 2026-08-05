@@ -21,12 +21,12 @@
 <p align="center">
   <a href="https://github.com/1tsok/iPrtSc/releases/latest">Download</a> ·
   <a href="https://github.com/1tsok/iPrtSc/releases">Releases</a> ·
-  <a href="https://github.com/1tsok/iPrtSc/issues">Issues</a> ·
   <a href="THIRD_PARTY_NOTICES.md">Third-party notices</a>
 </p>
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/05c84097-9ce7-4ded-b118-c41be31fd852" alt="iPrtSc capture overlay with annotations" width="700"/>
+  <img width="462" height="405" alt="Screenshot 2026-08-05 164637" src="https://github.com/user-attachments/assets/0919999e-b025-4b72-b429-ad0ac5b17758" />
+
 </p>
 
 ---
