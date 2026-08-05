@@ -59,7 +59,7 @@
                                HorizontalAlignment="Center"/>
                     <TextBlock x:Name="VersionText" Foreground="{StaticResource Fg2}" FontSize="13"
                                HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                    <TextBlock Text="A fast, lightweight screenshot tool." Foreground="{StaticResource Fg2}"
+                    <TextBlock Text="Screenshots that do more than screenshots." Foreground="{StaticResource Fg2}"
                                FontSize="13" HorizontalAlignment="Center" TextAlignment="Center"
                                Margin="0,14,0,0" TextWrapping="Wrap"/>
 

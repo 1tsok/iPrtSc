@@ -5,7 +5,7 @@
 <h1 align="center">iPrtSc</h1>
 
 <p align="center">
-  <b>A fast, lightweight screenshot tool for Windows 11.</b><br>
+  <b>Screenshots that do more than screenshots.</b><br>
   <br>
   Press a hotkey, select an area, annotate, grab text,<br>
   then copy or save - all from the system tray.
