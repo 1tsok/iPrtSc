@@ -174,21 +174,8 @@ public partial class OverlayWindow : Window
         BuildHandles();
         ToolSelect.IsChecked = true;
         UpdateUndoRedo();
-        DropShadowsIfRemote();
         Activate();
         Focus();
-    }
-
-    /// <summary>
-    /// A remote session renders in software, where a blurred drop shadow is re-rasterised
-    /// every time its panel moves, which is every frame while the selection is dragged or
-    /// resized. The panels keep their border, so they still read as separate surfaces.
-    /// </summary>
-    private void DropShadowsIfRemote()
-    {
-        if (!SystemParameters.IsRemoteSession) return;
-        foreach (var panel in new[] { ToolPanel, ActionPanel, ColorFlyout, ShapesFlyout, StampFlyout })
-            panel.Effect = null;
     }
 
     // ===== Mouse =====
@@ -336,17 +323,10 @@ public partial class OverlayWindow : Window
     }
 
     // ===== Mouse-move coalescing =====
-    // A remote-desktop session delivers pointer moves in bursts, and every one of them used
-    // to run a full selection update plus a repaint that has to travel over the wire. Keep
-    // only the newest point and apply it once per rendered frame instead.
+    // Pointer moves arrive in bursts, and every one of them used to run a full selection
+    // update plus a repaint. Keep only the newest point and apply it once per rendered frame.
     private Action<Point>? _moveHandler;
     private Point _movePoint;
-    private long _moveStamp;
-
-    // Remote sessions ship each frame as a bitmap, so half the refresh rate is plenty and
-    // halves the traffic. Locally there is no reason to skip frames.
-    private static readonly long MoveInterval =
-        SystemParameters.IsRemoteSession ? System.Diagnostics.Stopwatch.Frequency / 30 : 0;
 
     private void QueueMove(Action<Point> handler, Point p)
     {
@@ -355,13 +335,7 @@ public partial class OverlayWindow : Window
         _moveHandler = handler;
     }
 
-    private void OnMoveFrame(object? sender, EventArgs e)
-    {
-        long now = System.Diagnostics.Stopwatch.GetTimestamp();
-        if (now - _moveStamp < MoveInterval) return;   // stay hooked, catch the next frame
-        _moveStamp = now;
-        FlushMove();
-    }
+    private void OnMoveFrame(object? sender, EventArgs e) => FlushMove();
 
     /// <summary>
     /// Applies a pending move right away. Called before button-up so the gesture ends on the

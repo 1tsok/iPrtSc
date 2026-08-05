@@ -133,8 +133,8 @@ public static class ScreenCapture
     /// <summary>
     /// Wraps the capture as a WPF image. The format is Bgr32, not Bgra32: a screenshot is
     /// opaque anyway, and WPF cannot render straight (non-premultiplied) alpha directly:
-    /// it converts to Pbgra32 and alpha-blends on every repaint. Over a remote session,
-    /// where the overlay redraws in software, that conversion is pure overhead.
+    /// it converts to Pbgra32 and alpha-blends on every repaint, which is pure overhead for
+    /// a fullscreen image that has nothing to blend with.
     /// </summary>
     public static BitmapSource ToBitmapSource(Bitmap bmp)
     {
