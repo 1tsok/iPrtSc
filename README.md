@@ -19,9 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/1tsok/iPrtSc/releases/latest">Download</a> ·
-  <a href="https://github.com/1tsok/iPrtSc/releases">Releases</a> ·
-  <a href="THIRD_PARTY_NOTICES.md">Third-party notices</a>
+  <a href="https://github.com/1tsok/iPrtSc/releases/latest">Download</a>
 </p>
 
 <p align="center">
