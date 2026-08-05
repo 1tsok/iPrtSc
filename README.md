@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <img width="462" height="405" alt="Screenshot 2026-08-05 164637" src="https://github.com/user-attachments/assets/0919999e-b025-4b72-b429-ad0ac5b17758" />
+  <img width="462" height="405" alt="iPrtSc capture overlay with annotations" src="https://github.com/user-attachments/assets/0919999e-b025-4b72-b429-ad0ac5b17758" />
 
 </p>
 
