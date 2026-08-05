@@ -1742,35 +1742,19 @@ public partial class OverlayWindow : Window
     {
         foreach (var tag in HandleTags)
         {
-            // Edge handles are elongated pills along their edge; corner handles are
-            // L-shaped brackets whose elbow sits on the selection corner.
-            bool horizontal = tag is "T" or "B";
-            bool vertical = tag is "L" or "R";
-            FrameworkElement h;
-            if (horizontal || vertical)
+            // Every handle is the same white dot centered on its point of the frame.
+            var dot = new WpfRect
             {
-                var pill = new WpfRect
-                {
-                    Width = horizontal ? 76 : HandleThickness,
-                    Height = vertical ? 76 : HandleThickness,
-                    RadiusX = HandleThickness / 2,
-                    RadiusY = HandleThickness / 2,
-                    Fill = Brushes.White,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                // The pill cannot carry the transparent grab stroke itself: WPF fits a
-                // Rectangle's geometry inside its layout size minus the stroke width, so a
-                // 4px pill under an 11px stroke would render nothing at all. The padded
-                // wrapper does the same job — a transparent Background still hit-tests.
-                var box = new Grid { Background = Brushes.Transparent };
-                box.Children.Add(pill);
-                h = box;
-            }
-            else
-            {
-                h = BuildCornerHandle(tag);
-            }
+                Fill = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            // The dot cannot carry the transparent grab stroke itself: WPF fits a
+            // Rectangle's geometry inside its layout size minus the stroke width, so a
+            // 9px dot under an 11px stroke would render nothing at all. The padded
+            // wrapper does the same job — a transparent Background still hit-tests.
+            var h = new Grid { Background = Brushes.Transparent };
+            h.Children.Add(dot);
             h.Tag = tag;
             h.Visibility = Visibility.Collapsed;
             h.Cursor = CursorFor(tag);
@@ -1784,74 +1768,23 @@ public partial class OverlayWindow : Window
         }
     }
 
-    // Full length of an edge pill / corner arm, and the corner element's fixed box size
-    // (must fit elbow-at-center + arm: 148/2 + 76 > 148 is fine, WPF only clips to layout
-    // size when the desired size exceeds it, which it never does here).
-    private const double HandleArm = 76;
-    private const double CornerBox = 148;
-    /// <summary>Stroke width of both the edge pills and the corner brackets.</summary>
-    private const double HandleThickness = 4;
-    /// <summary>What that grows to while the pointer is on the handle.</summary>
-    private const double HandleThicknessHover = 7;
+    /// <summary>Diameter of a handle dot at rest.</summary>
+    private const double HandleDot = 9;
+    /// <summary>What it grows to while the pointer is on it.</summary>
+    private const double HandleDotHover = 15;
     /// <summary>
-    /// Invisible grab margin around each handle, widening it by half this on every side:
-    /// a padded transparent wrapper for the pills, a transparent stroke for the corner
-    /// brackets. 4px shapes are otherwise fiddly to hit.
+    /// Invisible grab margin around each dot, widening it by half this on every side:
+    /// a padded transparent wrapper, whose Background still hit-tests. A 9px dot is
+    /// otherwise fiddly to hit.
     /// </summary>
     private const double HandleHitPad = 11;
+    /// <summary>
+    /// Shortest edge that still fits a mid dot between the two corner ones: below this
+    /// the grown dots would collide, so the edge handle drops out.
+    /// </summary>
+    private const double EdgeDotMin = 40;
 
     private FrameworkElement? _hoverHandle;
-
-    /// <summary>
-    /// An L-shaped corner bracket rendered like the edge pills (white, rounded ends):
-    /// two rounded rects unioned into one L geometry. Built for TL with the elbow
-    /// centered in the element, then rotated for the other corners so the center-based
-    /// positioning in PositionHandles puts the elbow on the selection corner.
-    /// </summary>
-    private static Grid BuildCornerHandle(string tag)
-    {
-        var path = new System.Windows.Shapes.Path
-        {
-            Data = CornerGeometry(HandleArm, HandleArm, HandleThickness),
-            Fill = Brushes.White,
-            Stroke = Brushes.Transparent,
-            StrokeThickness = HandleHitPad
-        };
-        var g = new Grid { Width = CornerBox, Height = CornerBox };
-        g.Children.Add(path);
-        g.RenderTransformOrigin = new Point(0.5, 0.5);
-        g.RenderTransform = new RotateTransform(tag switch
-        {
-            "TR" => 90,
-            "BR" => 180,
-            "BL" => 270,
-            _ => 0
-        });
-        return g;
-    }
-
-    /// <summary>L geometry for a corner bracket, pre-rotation: arm a1 along X, a2 along Y.</summary>
-    private static Geometry CornerGeometry(double a1, double a2, double th)
-    {
-        double radius = th / 2;
-        double o = CornerBox / 2 - th / 2;   // places the elbow point (th/2, th/2) at center
-        return new CombinedGeometry(GeometryCombineMode.Union,
-            new RectangleGeometry(new Rect(o, o, a1, th), radius, radius),
-            new RectangleGeometry(new Rect(o, o, th, a2), radius, radius));
-    }
-
-    /// <summary>
-    /// Handle sizing along one selection axis of length s: on small regions the pill and
-    /// corner arms shrink to share the edge; when the pill would get too short it is
-    /// dropped and the corner arms split the edge between themselves.
-    /// </summary>
-    private static (double Arm, double Pill, bool ShowPill) SizeAxis(double s)
-    {
-        const double gap = 6;
-        double len = Math.Min(HandleArm, (s - 2 * gap) / 3);
-        if (len >= 12) return (len, len, true);
-        return (Math.Min(HandleArm, (s - gap) / 2), 0, false);
-    }
 
     private void OnHandleEnter(object sender, MouseEventArgs e)
     {
@@ -1900,55 +1833,26 @@ public partial class OverlayWindow : Window
             ["TL"] = new(l, t), ["T"] = new(cx, t), ["TR"] = new(r, t), ["R"] = new(r, cy),
             ["BR"] = new(r, b), ["B"] = new(cx, b), ["BL"] = new(l, b), ["L"] = new(l, cy)
         };
-        // Handles sit outside the selection border with a small gap: each is pushed
-        // outward along its tag's direction far enough that its inner face clears the edge.
-        var dir = new Dictionary<string, Vector>
-        {
-            ["TL"] = new(-1, -1), ["T"] = new(0, -1), ["TR"] = new(1, -1), ["R"] = new(1, 0),
-            ["BR"] = new(1, 1), ["B"] = new(0, 1), ["BL"] = new(-1, 1), ["L"] = new(-1, 0)
-        };
-        // On small regions the handles shrink (and the pills drop out) so nothing
-        // sticks out past the frame.
-        var (armX, pillX, showPillX) = SizeAxis(_sel.Width);
-        var (armY, pillY, showPillY) = SizeAxis(_sel.Height);
-        bool showCorners = Math.Min(armX, armY) >= 5;
-
-        const double gap = 0;
         foreach (var h in _handles)
         {
             string tag = (string)h.Tag;
-            bool corner = tag.Length == 2;
-            bool visible = corner ? showCorners : (tag is "T" or "B" ? showPillX : showPillY);
+            // Corner dots always show; a mid dot drops out once its edge is too short
+            // to keep it clear of them.
+            bool visible = tag.Length == 2
+                || (tag is "T" or "B" ? _sel.Width >= EdgeDotMin : _sel.Height >= EdgeDotMin);
             if (!visible) { h.Visibility = Visibility.Collapsed; continue; }
 
-            // The hovered handle thickens, which is both the affordance and a bigger target.
-            double th = ReferenceEquals(h, _hoverHandle) ? HandleThicknessHover : HandleThickness;
+            // The hovered dot grows: both the affordance and a bigger target.
+            double size = ReferenceEquals(h, _hoverHandle) ? HandleDotHover : HandleDot;
+            var dot = (WpfRect)((Grid)h).Children[0];
+            dot.Width = dot.Height = size;
+            dot.RadiusX = dot.RadiusY = size / 2;
+            h.Width = h.Height = size + HandleHitPad;   // the grab margin around it
 
-            if (tag is "T" or "B" or "L" or "R")
-            {
-                var box = (Grid)h;
-                var pill = (WpfRect)box.Children[0];
-                if (tag is "T" or "B") { pill.Width = pillX; pill.Height = th; }
-                else { pill.Width = th; pill.Height = pillY; }
-                pill.RadiusX = pill.RadiusY = th / 2;
-                box.Width = pill.Width + HandleHitPad;     // the grab margin around it
-                box.Height = pill.Height + HandleHitPad;
-            }
-            else
-            {
-                // 90°/270° rotations swap the element's axes, so feed the arms swapped.
-                bool swap = tag is "TR" or "BL";
-                ((System.Windows.Shapes.Path)((Grid)h).Children[0]).Data =
-                    CornerGeometry(swap ? armY : armX, swap ? armX : armY, th);
-            }
-
+            // Centered on its point of the frame, so growing it stays symmetric.
             var p = pos[tag];
-            var u = dir[tag];
-            // Slightly past the center of the edge, so the handles hug the frame.
-            // Growing the thickness widens them evenly on both sides of it.
-            const double d = gap + 0.25;
-            Canvas.SetLeft(h, p.X + u.X * d - h.Width / 2);
-            Canvas.SetTop(h, p.Y + u.Y * d - h.Height / 2);
+            Canvas.SetLeft(h, p.X - h.Width / 2);
+            Canvas.SetTop(h, p.Y - h.Height / 2);
             h.Visibility = Visibility.Visible;
         }
     }
