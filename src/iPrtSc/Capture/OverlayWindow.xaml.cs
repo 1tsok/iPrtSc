@@ -67,7 +67,7 @@ public partial class OverlayWindow : Window
     private Tool _tool = Tool.Select;
     private Tool _shape = Tool.Arrow;   // last shape picked from the shapes group
     private Tool _beforePicker = Tool.Select;   // restored after a colour is picked
-    private string _colorHex = "#FFE81123";   // red, also present in ColorPresets
+    private string _colorHex = "#FFE81123";   // red default, replaced in the ctor by the remembered colour
     private double _thickness = 4;
     private int _counter = 1;
 
@@ -132,6 +132,7 @@ public partial class OverlayWindow : Window
         _settings = settings;
         _src = src;
         _quickCopy = quickCopy;
+        _colorHex = ValidColor(settings.LastColor, _colorHex);
         BaseImage.Source = src;
         ClearImage.Source = src;
         ClearImage.Clip = _clearClip;
@@ -1526,9 +1527,7 @@ public partial class OverlayWindow : Window
     private void PickColor(Point p)
     {
         var c = SampleColor(p);
-        _colorHex = $"#FF{c.R:X2}{c.G:X2}{c.B:X2}";
-        ColorDot.Fill = ToBrush(_colorHex);
-        RefreshColorSelection();
+        SetColor($"#FF{c.R:X2}{c.G:X2}{c.B:X2}");
         ClipboardService.CopyText(Hex(c));
 
         var back = _beforePicker is Tool.Picker or Tool.OcrText ? Tool.Select : _beforePicker;
@@ -1649,9 +1648,7 @@ public partial class OverlayWindow : Window
 
     private void OnColorClick(object sender, MouseButtonEventArgs e)
     {
-        _colorHex = (string)((Border)sender).Tag;
-        ColorDot.Fill = ToBrush(_colorHex);
-        RefreshColorSelection();
+        SetColor((string)((Border)sender).Tag);
         HideColorFlyout();
         // Recolor the text box being edited live.
         if (_editBox is TextBox tb)
@@ -1659,6 +1656,30 @@ public partial class OverlayWindow : Window
             tb.Foreground = ToBrush(_colorHex);
             tb.CaretBrush = ToBrush(_colorHex);
         }
+    }
+
+    /// <summary>
+    /// The single place the drawing colour changes: swatch clicks and the eyedropper both land
+    /// here, so the toolbar dot, the palette ring and the remembered colour never drift apart.
+    /// The colour is persisted right away, so the next capture starts where this one left off.
+    /// </summary>
+    private void SetColor(string hex)
+    {
+        _colorHex = hex;
+        ColorDot.Fill = ToBrush(hex);
+        RefreshColorSelection();
+
+        if (string.Equals(_settings.LastColor, hex, StringComparison.OrdinalIgnoreCase)) return;
+        _settings.LastColor = hex;
+        SettingsStore.Save(_settings);
+    }
+
+    /// <summary>Guards the remembered colour: a hand-edited settings file falls back to the default.</summary>
+    private static string ValidColor(string? hex, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(hex)) return fallback;
+        try { return ColorConverter.ConvertFromString(hex) is Color ? hex : fallback; }
+        catch { return fallback; }
     }
 
     private void RefreshColorSelection()

@@ -48,6 +48,9 @@ public class AppSettings
     /// <summary>Selection-frame accent color (ARGB hex).</summary>
     public string AccentColor { get; set; } = "#FF0A84FF";
 
+    /// <summary>Drawing color used in the last capture (ARGB hex), restored by the next one.</summary>
+    public string LastColor { get; set; } = "#FFE81123";
+
     /// <summary>Auto-archive captures to %APPDATA%\iPrtSc\history and delete files older than
     /// this many days. 0 => history disabled (no archiving, no submenu). Allowed: 0/1/3/7.</summary>
     public int HistoryRetentionDays { get; set; } = 7;
@@ -100,6 +103,7 @@ public class AppSettings
         AskWhereToSave = AskWhereToSave,
         AutoStart = AutoStart,
         AccentColor = AccentColor,
+        LastColor = LastColor,
         HistoryRetentionDays = HistoryRetentionDays,
         RestoreSnippingToolWhenReleased = RestoreSnippingToolWhenReleased,
         LastUpdateCheckUtc = LastUpdateCheckUtc,
