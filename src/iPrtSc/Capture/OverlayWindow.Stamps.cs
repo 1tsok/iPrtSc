@@ -90,49 +90,16 @@ public partial class OverlayWindow
 
     // ===== Auto ink: pick deep/bright from the background luminance under the stamp =====
 
-    private byte[]? _lumMap;                               // downscaled Gray8 copy of the screenshot
-    private int _lumW, _lumH;
-    private const int LumShift = 3;                        // luminance map at 1/8 resolution
+    // Built on first use: a capture with no Auto stamp never pays for it.
+    private LuminanceMap? _lum;
+    private LuminanceMap Lum => _lum ??= new LuminanceMap(_src, _scale);
 
-    private void EnsureLumMap()
-    {
-        if (_lumMap != null) return;
-        double f = 1.0 / (1 << LumShift);
-        var gray = new FormatConvertedBitmap(
-            new TransformedBitmap(_src, new ScaleTransform(f, f)), PixelFormats.Gray8, null, 0);
-        _lumW = gray.PixelWidth;
-        _lumH = gray.PixelHeight;
-        _lumMap = new byte[_lumW * _lumH];
-        gray.CopyPixels(_lumMap, _lumW, 0);
-    }
-
-    /// <summary>Mean luminance (0–255) under the stamp's unrotated bounding box.</summary>
-    private double LumUnder(StampAnnotation s)
-    {
-        EnsureLumMap();
-        var c = s.Center;
-        var h = s.HalfSize;
-        double f = _scale / (1 << LumShift);
-        int x0 = Math.Clamp((int)((c.X - h.X) * f), 0, _lumW - 1);
-        int x1 = Math.Clamp((int)((c.X + h.X) * f), x0, _lumW - 1);
-        int y0 = Math.Clamp((int)((c.Y - h.Y) * f), 0, _lumH - 1);
-        int y1 = Math.Clamp((int)((c.Y + h.Y) * f), y0, _lumH - 1);
-        long sum = 0;
-        for (int y = y0; y <= y1; y++)
-            for (int x = x0; x <= x1; x++) sum += _lumMap![y * _lumW + x];
-        return (double)sum / ((x1 - x0 + 1) * (y1 - y0 + 1));
-    }
-
-    /// <summary>
-    /// Live re-pick for Auto stamps. The hysteresis band (128–150) keeps the ink from
-    /// flickering while the stamp is dragged across a background near the threshold.
-    /// </summary>
+    /// <summary>Live re-pick of an Auto stamp's ink for the background it now sits on.</summary>
     private void ResampleAutoInk(StampAnnotation s)
     {
+        // Checked here too, so a plain stamp never triggers the luminance map.
         if (!s.AutoInk) return;
-        double lum = LumUnder(s);
-        if (s.BrightInk) { if (lum > 150) s.SetBrightInk(false); }
-        else if (lum < 128) s.SetBrightInk(true);
+        s.ApplyAutoInk(Lum.Mean(s.Center, s.HalfSize));
     }
 
     private void OnStampPick(object sender, MouseButtonEventArgs e)

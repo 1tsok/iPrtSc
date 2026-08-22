@@ -314,6 +314,18 @@ public sealed class StampAnnotation : Annotation, IEditTarget
         _outer.Children.Add(BuildInner(brightInk));
     }
 
+    /// <summary>
+    /// Re-picks the ink for the background luminance the stamp now sits on. The band
+    /// between the two thresholds is hysteresis: it keeps the ink from flickering while
+    /// the stamp is dragged across a background near the switching point.
+    /// </summary>
+    public void ApplyAutoInk(double lum)
+    {
+        if (!AutoInk) return;
+        if (BrightInk) { if (lum > 150) SetBrightInk(false); }
+        else if (lum < 128) SetBrightInk(true);
+    }
+
     public double Angle
     {
         get => _rotate.Angle;
