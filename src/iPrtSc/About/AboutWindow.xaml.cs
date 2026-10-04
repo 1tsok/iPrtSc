@@ -12,12 +12,12 @@ public partial class AboutWindow : Window
         InitializeComponent();
 
         var v = Assembly.GetExecutingAssembly().GetName().Version;
-        VersionText.Text = v is null ? "" : $"Version {v.Major}.{v.Minor}.{v.Build}";
+        VersionText.Text = v is null ? "" : string.Format(Strings.About_Version, $"{v.Major}.{v.Minor}.{v.Build}");
         CopyrightText.Text = $"© {DateTime.Now.Year} iPrtSc";
 
         if (!string.IsNullOrEmpty(updateVersion))
         {
-            UpdateBanner.Content = $"Update available: v{updateVersion} — Download";
+            UpdateBanner.Content = string.Format(Strings.About_UpdateBanner, updateVersion);
             UpdateBanner.Visibility = Visibility.Visible;
         }
     }

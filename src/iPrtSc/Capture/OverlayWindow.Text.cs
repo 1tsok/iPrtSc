@@ -81,10 +81,11 @@ public partial class OverlayWindow
             return mi;
         }
 
-        var cut = Item("Cut", "Ctrl+X", box.Cut);
-        var copy = Item("Copy", "Ctrl+C", box.Copy);
-        var paste = Item("Paste", "Ctrl+V", box.Paste);
-        var all = Item("Select all", "Ctrl+A", box.SelectAll);
+        string ctrl = Strings.Common_KeyCtrl;
+        var cut = Item(Strings.Common_Cut, ctrl + "+X", box.Cut);
+        var copy = Item(Strings.Common_Copy, ctrl + "+C", box.Copy);
+        var paste = Item(Strings.Common_Paste, ctrl + "+V", box.Paste);
+        var all = Item(Strings.Common_SelectAll, ctrl + "+A", box.SelectAll);
 
         var menu = new ContextMenu { Style = (Style)FindResource("CtxMenu") };
         menu.Items.Add(cut);

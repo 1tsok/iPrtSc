@@ -198,8 +198,8 @@ public partial class OverlayWindow
 
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
-            Title = "Save screenshot",
-            Filter = "PNG image (*.png)|*.png|JPEG image (*.jpg)|*.jpg",
+            Title = Strings.Overlay_SaveDialog_Title,
+            Filter = $"{Strings.Overlay_SaveDialog_Png} (*.png)|*.png|{Strings.Overlay_SaveDialog_Jpeg} (*.jpg)|*.jpg",
             FileName = SaveService.DefaultFileName(_settings),
             InitialDirectory = SaveService.DefaultFolder(_settings),
             AddExtension = true,

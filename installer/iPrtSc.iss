@@ -1,4 +1,4 @@
-; Inno Setup script for iPrtSc — per-machine installer (one UAC prompt at install)
+﻿; Inno Setup script for iPrtSc — per-machine installer (one UAC prompt at install)
 ; so it appears in Windows 11 Settings > Installed apps.
 ; The published app is self-contained: the .NET 8 runtime is bundled, so the
 ; target machine does NOT need .NET installed.
@@ -63,6 +63,10 @@ ArchitecturesInstallIn64BitMode=x64compatible
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "uk"; MessagesFile: "compiler:Languages\Ukrainian.isl"
+Name: "pl"; MessagesFile: "compiler:Languages\Polish.isl"
+Name: "de"; MessagesFile: "compiler:Languages\German.isl"
+Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -88,9 +92,18 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 ; drag&drop all break under an admin token).
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
+[Registry]
+; The wizard language seeds the app's UI language on first run (Localization.ReadInstallerLanguage),
+; so a Ukrainian setup produces a Ukrainian app. Per-machine because setup runs elevated.
+Root: HKLM; Subkey: "Software\{#MyAppName}"; ValueType: string; ValueName: "InstallLanguage"; ValueData: "{language}"; Flags: uninsdeletekey
+
 [CustomMessages]
 en.DeleteSettings=Do you also want to delete your iPrtSc settings and screenshot history?
 uk.DeleteSettings=Видалити також налаштування та історію знімків iPrtSc?
+pl.DeleteSettings=Czy chcesz również usunąć ustawienia i historię zrzutów ekranu iPrtSc?
+de.DeleteSettings=Möchten Sie auch Ihre iPrtSc-Einstellungen und den Screenshot-Verlauf löschen?
+es.DeleteSettings=¿Quieres eliminar también la configuración y el historial de capturas de iPrtSc?
+fr.DeleteSettings=Voulez-vous également supprimer vos paramètres et l'historique des captures d'iPrtSc ?
 
 [Code]
 const

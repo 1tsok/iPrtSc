@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Annuler</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Enregistrer</value>
+  </data>
+  <data name="Common_Copy" xml:space="preserve">
+    <value>Copier</value>
+  </data>
+  <data name="Common_Cut" xml:space="preserve">
+    <value>Couper</value>
+  </data>
+  <data name="Common_Paste" xml:space="preserve">
+    <value>Coller</value>
+  </data>
+  <data name="Common_SelectAll" xml:space="preserve">
+    <value>Tout sélectionner</value>
+  </data>
+  <data name="Common_None" xml:space="preserve">
+    <value>Aucun</value>
+  </data>
+  <data name="Common_KeyCtrl" xml:space="preserve">
+    <value>Ctrl</value>
+  </data>
+  <data name="Common_KeyEsc" xml:space="preserve">
+    <value>Échap</value>
+  </data>
+  <data name="Common_KeyEnter" xml:space="preserve">
+    <value>Entrée</value>
+  </data>
+  <data name="Settings_WindowTitle" xml:space="preserve">
+    <value>Paramètres d'iPrtSc</value>
+  </data>
+  <data name="Settings_Header" xml:space="preserve">
+    <value>Paramètres</value>
+  </data>
+  <data name="Settings_Nav_Hotkeys" xml:space="preserve">
+    <value>Raccourcis clavier</value>
+  </data>
+  <data name="Settings_Nav_Saving" xml:space="preserve">
+    <value>Enregistrement</value>
+  </data>
+  <data name="Settings_Nav_Clipboard" xml:space="preserve">
+    <value>Presse-papiers</value>
+  </data>
+  <data name="Settings_Nav_History" xml:space="preserve">
+    <value>Historique</value>
+  </data>
+  <data name="Settings_Nav_Appearance" xml:space="preserve">
+    <value>Apparence</value>
+  </data>
+  <data name="Settings_Nav_System" xml:space="preserve">
+    <value>Système</value>
+  </data>
+  <data name="Settings_Nav_Language" xml:space="preserve">
+    <value>Langue</value>
+  </data>
+  <data name="Settings_Hotkeys_Help" xml:space="preserve">
+    <value>Cliquez sur un champ et appuyez sur les touches souhaitées. Retour arrière efface un raccourci.</value>
+  </data>
+  <data name="Settings_Hotkey_Capture" xml:space="preserve">
+    <value>Capture</value>
+  </data>
+  <data name="Settings_Hotkey_QuickCopy" xml:space="preserve">
+    <value>Copie rapide</value>
+  </data>
+  <data name="Settings_Hotkey_QuickCopyHelp" xml:space="preserve">
+    <value>Sélectionnez une zone et relâchez la souris - elle va directement dans le presse-papiers, sans panneau d'édition.</value>
+  </data>
+  <data name="Settings_Hotkey_FullScreen" xml:space="preserve">
+    <value>Copier tout l'écran</value>
+  </data>
+  <data name="Settings_Hotkey_FullScreenHelp" xml:space="preserve">
+    <value>Copie aussitôt l'écran sous le curseur dans le presse-papiers, sans sélection.</value>
+  </data>
+  <data name="Settings_Hotkey_History" xml:space="preserve">
+    <value>Ouvrir l'historique</value>
+  </data>
+  <data name="Settings_Hotkey_Listening" xml:space="preserve">
+    <value>Appuyez sur une combinaison de touches…</value>
+  </data>
+  <data name="Settings_Hotkey_EnableHistoryFirst" xml:space="preserve">
+    <value>Activez d'abord l'historique</value>
+  </data>
+  <data name="Settings_Saving_Ask" xml:space="preserve">
+    <value>Demander où enregistrer</value>
+  </data>
+  <data name="Settings_Saving_AskHelp" xml:space="preserve">
+    <value>Afficher une boîte de dialogue à chaque enregistrement</value>
+  </data>
+  <data name="Settings_Saving_Folder" xml:space="preserve">
+    <value>Dossier par défaut</value>
+  </data>
+  <data name="Settings_Saving_FolderDefaultSuffix" xml:space="preserve">
+    <value>(par défaut)</value>
+  </data>
+  <data name="Settings_Saving_FolderDialogTitle" xml:space="preserve">
+    <value>Choisir le dossier par défaut</value>
+  </data>
+  <data name="Settings_Saving_Format" xml:space="preserve">
+    <value>Format par défaut</value>
+  </data>
+  <data name="Settings_Clipboard_CopyOnSave" xml:space="preserve">
+    <value>Copier dans le presse-papiers à l'enregistrement</value>
+  </data>
+  <data name="Settings_Clipboard_CopyOnSaveHelp" xml:space="preserve">
+    <value>Garder une copie dans le presse-papiers après l'enregistrement dans un fichier</value>
+  </data>
+  <data name="Settings_History_Keep" xml:space="preserve">
+    <value>Conserver les captures récentes</value>
+  </data>
+  <data name="Settings_History_KeepHelp" xml:space="preserve">
+    <value>Chaque capture est archivée automatiquement ; les anciens fichiers sont supprimés et les récents apparaissent dans le menu Historique de la barre d'état.</value>
+  </data>
+  <data name="Settings_History_AutoDelete" xml:space="preserve">
+    <value>Supprimer automatiquement après</value>
+  </data>
+  <data name="Settings_History_Off" xml:space="preserve">
+    <value>Désactivé</value>
+  </data>
+  <data name="Settings_History_1Day" xml:space="preserve">
+    <value>1 jour</value>
+  </data>
+  <data name="Settings_History_3Days" xml:space="preserve">
+    <value>3 jours</value>
+  </data>
+  <data name="Settings_History_7Days" xml:space="preserve">
+    <value>7 jours</value>
+  </data>
+  <data name="Settings_Appearance_Accent" xml:space="preserve">
+    <value>Couleur d'accentuation</value>
+  </data>
+  <data name="Settings_System_AutoStart" xml:space="preserve">
+    <value>Démarrer avec Windows</value>
+  </data>
+  <data name="Settings_System_AutoStartHelp" xml:space="preserve">
+    <value>Lancer iPrtSc automatiquement à l'ouverture de session</value>
+  </data>
+  <data name="Settings_Language_Label" xml:space="preserve">
+    <value>Langue de l'interface</value>
+  </data>
+  <data name="Settings_Language_Help" xml:space="preserve">
+    <value>S'applique après un clic sur Enregistrer.</value>
+  </data>
+  <data name="Settings_Language_Auto" xml:space="preserve">
+    <value>Automatique (système)</value>
+  </data>
+  <data name="Overlay_Tool_Select" xml:space="preserve">
+    <value>Sélectionner une zone (C)</value>
+  </data>
+  <data name="Overlay_Tool_Move" xml:space="preserve">
+    <value>Déplacer des objets (V)</value>
+  </data>
+  <data name="Overlay_Tool_Pen" xml:space="preserve">
+    <value>Stylo (P)</value>
+  </data>
+  <data name="Overlay_Tool_Marker" xml:space="preserve">
+    <value>Surligneur (M)</value>
+  </data>
+  <data name="Overlay_Tool_Shapes" xml:space="preserve">
+    <value>Formes (A / L / R / E)</value>
+  </data>
+  <data name="Overlay_Tool_Text" xml:space="preserve">
+    <value>Texte (T)</value>
+  </data>
+  <data name="Overlay_Tool_Counter" xml:space="preserve">
+    <value>Étape numérotée (N)</value>
+  </data>
+  <data name="Overlay_Tool_Stamps" xml:space="preserve">
+    <value>Tampons (S)</value>
+  </data>
+  <data name="Overlay_Tool_Pixelate" xml:space="preserve">
+    <value>Pixelliser une zone (B)</value>
+  </data>
+  <data name="Overlay_Tool_Ocr" xml:space="preserve">
+    <value>Capturer le texte (G) - faites glisser sur les mots, Ctrl+C pour copier</value>
+  </data>
+  <data name="Overlay_Tool_Picker" xml:space="preserve">
+    <value>Choisir une couleur (I) - un clic prélève le pixel et copie son code hex</value>
+  </data>
+  <data name="Overlay_Tool_Color" xml:space="preserve">
+    <value>Couleur</value>
+  </data>
+  <data name="Overlay_Tool_Undo" xml:space="preserve">
+    <value>Annuler (Ctrl+Z)</value>
+  </data>
+  <data name="Overlay_Tool_Redo" xml:space="preserve">
+    <value>Rétablir (Ctrl+Y)</value>
+  </data>
+  <data name="Overlay_Tool_Copy" xml:space="preserve">
+    <value>Copier (Entrée)</value>
+  </data>
+  <data name="Overlay_Tool_Save" xml:space="preserve">
+    <value>Enregistrer (Ctrl+S)</value>
+  </data>
+  <data name="Overlay_Tool_Cancel" xml:space="preserve">
+    <value>Annuler (Échap)</value>
+  </data>
+  <data name="Overlay_Colors_Header" xml:space="preserve">
+    <value>Couleurs</value>
+  </data>
+  <data name="Overlay_Shape_Arrow" xml:space="preserve">
+    <value>Flèche (A)</value>
+  </data>
+  <data name="Overlay_Shape_Line" xml:space="preserve">
+    <value>Ligne (L)</value>
+  </data>
+  <data name="Overlay_Shape_Rect" xml:space="preserve">
+    <value>Rectangle (R, Maj = carré)</value>
+  </data>
+  <data name="Overlay_Shape_Ellipse" xml:space="preserve">
+    <value>Ellipse (E, Maj = cercle)</value>
+  </data>
+  <data name="Overlay_Stamps_Header" xml:space="preserve">
+    <value>Tampons</value>
+  </data>
+  <data name="Overlay_Stamps_InkLight" xml:space="preserve">
+    <value>Encre pour fonds clairs</value>
+  </data>
+  <data name="Overlay_Stamps_InkDark" xml:space="preserve">
+    <value>Encre pour fonds sombres</value>
+  </data>
+  <data name="Overlay_Stamps_InkAuto" xml:space="preserve">
+    <value>Auto - l'encre s'adapte à l'arrière-plan sous le tampon</value>
+  </data>
+  <data name="Overlay_Copied" xml:space="preserve">
+    <value>Copié</value>
+  </data>
+  <data name="Overlay_Hint_NoText" xml:space="preserve">
+    <value>Aucun texte trouvé dans la sélection</value>
+  </data>
+  <data name="Overlay_Hint_Recognizing" xml:space="preserve">
+    <value>Reconnaissance du texte…</value>
+  </data>
+  <data name="Overlay_Hint_OcrFailed" xml:space="preserve">
+    <value>Échec de la reconnaissance du texte</value>
+  </data>
+  <data name="Overlay_Hint_ColorCopied" xml:space="preserve">
+    <value>{0} copié</value>
+  </data>
+  <data name="Overlay_Menu_CopyText" xml:space="preserve">
+    <value>Copier le texte</value>
+  </data>
+  <data name="Overlay_Menu_SelectFullScreen" xml:space="preserve">
+    <value>Sélectionner tout l'écran</value>
+  </data>
+  <data name="Overlay_Menu_ClearSelection" xml:space="preserve">
+    <value>Effacer la sélection</value>
+  </data>
+  <data name="Overlay_SaveDialog_Title" xml:space="preserve">
+    <value>Enregistrer la capture</value>
+  </data>
+  <data name="Overlay_SaveDialog_Png" xml:space="preserve">
+    <value>Image PNG</value>
+  </data>
+  <data name="Overlay_SaveDialog_Jpeg" xml:space="preserve">
+    <value>Image JPEG</value>
+  </data>
+  <data name="Tray_Menu_Capture" xml:space="preserve">
+    <value>Capturer</value>
+  </data>
+  <data name="Tray_Menu_QuickCopy" xml:space="preserve">
+    <value>Copie rapide</value>
+  </data>
+  <data name="Tray_Menu_History" xml:space="preserve">
+    <value>Historique…</value>
+  </data>
+  <data name="Tray_Menu_Settings" xml:space="preserve">
+    <value>Paramètres…</value>
+  </data>
+  <data name="Tray_Menu_About" xml:space="preserve">
+    <value>À propos</value>
+  </data>
+  <data name="Tray_Menu_Exit" xml:space="preserve">
+    <value>Quitter</value>
+  </data>
+  <data name="Tray_Menu_Update" xml:space="preserve">
+    <value>Télécharger la mise à jour v{0}</value>
+  </data>
+  <data name="Tray_Tooltip" xml:space="preserve">
+    <value>iPrtSc v{0}</value>
+  </data>
+  <data name="Tray_TooltipUpdate" xml:space="preserve">
+    <value>iPrtSc v{0} - mise à jour {1} disponible</value>
+  </data>
+  <data name="Balloon_HotkeyFailed" xml:space="preserve">
+    <value>Impossible d'enregistrer le raccourci « {0} » - il est peut-être utilisé par une autre application.</value>
+  </data>
+  <data name="Balloon_PrtScClaimed" xml:space="preserve">
+    <value>La touche Impr. écran ouvre désormais iPrtSc. Le raccourci Windows de l'Outil Capture d'écran a été désactivé - vous pouvez le réactiver à tout moment dans Paramètres ▸ Bluetooth et appareils ▸ Clavier, ou choisir ici un autre raccourci.</value>
+  </data>
+  <data name="Balloon_PrtScReleased" xml:space="preserve">
+    <value>Impr. écran libérée - le raccourci Windows de l'Outil Capture d'écran a été restauré.</value>
+  </data>
+  <data name="Balloon_UpdateAvailable" xml:space="preserve">
+    <value>La version {0} est disponible. Faites un clic droit sur l'icône de la barre d'état pour la télécharger.</value>
+  </data>
+  <data name="Balloon_ScreenCopied" xml:space="preserve">
+    <value>Écran copié dans le presse-papiers</value>
+  </data>
+  <data name="Balloon_Saved" xml:space="preserve">
+    <value>Enregistré : {0}</value>
+  </data>
+  <data name="Balloon_TextCopied" xml:space="preserve">
+    <value>Texte copié dans le presse-papiers</value>
+  </data>
+  <data name="History_Title" xml:space="preserve">
+    <value>Captures récentes</value>
+  </data>
+  <data name="History_Pin" xml:space="preserve">
+    <value>Garder cette fenêtre ouverte</value>
+  </data>
+  <data name="History_Empty" xml:space="preserve">
+    <value>Aucune capture pour le moment</value>
+  </data>
+  <data name="History_ClickHint" xml:space="preserve">
+    <value>Clic gauche : copier  ·  Clic droit : ouvrir</value>
+  </data>
+  <data name="History_OpenFolder" xml:space="preserve">
+    <value>Ouvrir le dossier de l'historique</value>
+  </data>
+  <data name="History_Flash_Copied" xml:space="preserve">
+    <value>Copié</value>
+  </data>
+  <data name="History_Flash_Opened" xml:space="preserve">
+    <value>Ouvert</value>
+  </data>
+  <data name="History_Flash_CopyFailed" xml:space="preserve">
+    <value>Échec de la copie</value>
+  </data>
+  <data name="History_Flash_OpenFailed" xml:space="preserve">
+    <value>Échec d'ouverture</value>
+  </data>
+  <data name="About_WindowTitle" xml:space="preserve">
+    <value>À propos d'iPrtSc</value>
+  </data>
+  <data name="About_Version" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="About_Tagline" xml:space="preserve">
+    <value>Des captures d'écran qui font plus que des captures d'écran.</value>
+  </data>
+  <data name="About_UpdateBanner" xml:space="preserve">
+    <value>Mise à jour disponible : v{0} - Télécharger</value>
+  </data>
+  <data name="About_Contact" xml:space="preserve">
+    <value>Contact :</value>
+  </data>
+  <data name="About_GitHub" xml:space="preserve">
+    <value>iPrtSc sur GitHub</value>
+  </data>
+  <data name="About_Coffee" xml:space="preserve">
+    <value>Offrez-moi un café ☕</value>
+  </data>
+</root>

@@ -16,6 +16,12 @@ $version = ([xml](Get-Content $csproj)).Project.PropertyGroup.Version |
 if (-not $version) { throw "Could not read <Version> from $csproj." }
 Write-Host "==> Building iPrtSc v$version" -ForegroundColor Cyan
 
+Write-Host "==> Checking localization..." -ForegroundColor Cyan
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\check-locales.ps1
+if ($LASTEXITCODE -ne 0) { throw "Localization check failed (see above)." }
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\check-no-literals.ps1
+if ($LASTEXITCODE -ne 0) { throw "Hardcoded UI text found (see above)." }
+
 Write-Host "==> Publishing self-contained win-x64 build..." -ForegroundColor Cyan
 dotnet publish src/iPrtSc/iPrtSc.csproj `
     -c Release -r win-x64 --self-contained true `

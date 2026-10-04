@@ -402,15 +402,16 @@ public partial class OverlayWindow : Window
         var menu = new ContextMenu { Style = (Style)FindResource("CtxMenu") };
         // In the Grab-text tool Enter copies the text, not the image, so the shortcuts move.
         bool ocr = _tool == Tool.OcrText;
-        menu.Items.Add(Item("Copy",              ocr ? "" : "Enter", hasSel, DoCopy));
+        string ctrl = Strings.Common_KeyCtrl;
+        menu.Items.Add(Item(Strings.Common_Copy, ocr ? "" : Strings.Common_KeyEnter, hasSel, DoCopy));
         if (ocr)
-            menu.Items.Add(Item("Copy text",     "Ctrl+C", hasSel, () => _ = DoCopyText()));
-        menu.Items.Add(Item("Save",              "Ctrl+S",       hasSel, DoSave));
+            menu.Items.Add(Item(Strings.Overlay_Menu_CopyText, ctrl + "+C", hasSel, () => _ = DoCopyText()));
+        menu.Items.Add(Item(Strings.Common_Save, ctrl + "+S", hasSel, DoSave));
         menu.Items.Add(new Separator { Style = (Style)FindResource("CtxSep") });
-        menu.Items.Add(Item("Select full screen","Ctrl+A", true,   SelectFullScreen));
-        menu.Items.Add(Item("Clear selection",   "",       hasSel, DoClearSelection));
+        menu.Items.Add(Item(Strings.Overlay_Menu_SelectFullScreen, ctrl + "+A", true, SelectFullScreen));
+        menu.Items.Add(Item(Strings.Overlay_Menu_ClearSelection, "", hasSel, DoClearSelection));
         menu.Items.Add(new Separator { Style = (Style)FindResource("CtxSep") });
-        menu.Items.Add(Item("Cancel",            "Esc",    true,   Close));
+        menu.Items.Add(Item(Strings.Common_Cancel, Strings.Common_KeyEsc, true, Close));
 
         menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
         menu.PlacementTarget = this;

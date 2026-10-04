@@ -48,6 +48,13 @@ public partial class App : Application
         try
         {
             _settings = SettingsStore.Load();
+            if (_settings.UiLanguage is null)
+            {
+                // First run with this setting: follow the installer's language, else Windows.
+                _settings.UiLanguage = Localization.ReadInstallerLanguage() ?? "";
+                SettingsStore.Save(_settings);
+            }
+            Localization.Apply(_settings.UiLanguage);
             Logger.Log($"Settings loaded. Hotkey={_settings.HotkeyDisplay}");
             AutoStart.Apply(_settings.AutoStart);
 
@@ -103,7 +110,7 @@ public partial class App : Application
 
     private void WarnHotkeyFailed(string display) =>
         _tray.ShowBalloonTip(3500, "iPrtSc",
-            $"Could not register the hotkey \"{display}\" — it may be in use by another app.",
+            string.Format(Strings.Balloon_HotkeyFailed, display),
             Forms.ToolTipIcon.Warning);
 
     private void OnHotkeyPressed()
@@ -150,8 +157,8 @@ public partial class App : Application
     /// <summary>Tray hover text: app version, plus an update note when one is pending.</summary>
     private string TrayTooltip() =>
         _updateAvailable
-            ? $"iPrtSc v{UpdateChecker.Current} — update {_latestVersion} available"
-            : $"iPrtSc v{UpdateChecker.Current}";
+            ? string.Format(Strings.Tray_TooltipUpdate, UpdateChecker.Current, _latestVersion)
+            : string.Format(Strings.Tray_Tooltip, UpdateChecker.Current);
 
     private void ShowTrayMenu()
     {
@@ -160,18 +167,18 @@ public partial class App : Application
         var menu = new TrayMenuWindow();
         if (_updateAvailable)
         {
-            menu.AddItem($"Download update v{_latestVersion}", "", OpenReleasesPage, badge: true);
+            menu.AddItem(string.Format(Strings.Tray_Menu_Update, _latestVersion), "", OpenReleasesPage, badge: true);
             menu.AddSeparator();
         }
-        menu.AddItem("Capture", _settings.HotkeyDisplay, () => BeginCapture());
+        menu.AddItem(Strings.Tray_Menu_Capture, _settings.HotkeyDisplay, () => BeginCapture());
         if (!string.IsNullOrWhiteSpace(_settings.QuickCopyHotkeyKey))
-            menu.AddItem("Quick copy", _settings.QuickCopyHotkeyDisplay, () => BeginCapture(quickCopy: true));
+            menu.AddItem(Strings.Tray_Menu_QuickCopy, _settings.QuickCopyHotkeyDisplay, () => BeginCapture(quickCopy: true));
         if (_settings.HistoryRetentionDays > 0)
-            menu.AddItem("History…", _settings.HistoryHotkeyDisplay, ShowHistoryFlyout);
-        menu.AddItem("Settings…", "", OpenSettings);
-        menu.AddItem("About", "", OpenAbout);
+            menu.AddItem(Strings.Tray_Menu_History, _settings.HistoryHotkeyDisplay, ShowHistoryFlyout);
+        menu.AddItem(Strings.Tray_Menu_Settings, "", OpenSettings);
+        menu.AddItem(Strings.Tray_Menu_About, "", OpenAbout);
         menu.AddSeparator();
-        menu.AddItem("Exit", "", ExitApp);
+        menu.AddItem(Strings.Tray_Menu_Exit, "", ExitApp);
         menu.Closed += (_, _) => { if (ReferenceEquals(_trayMenu, menu)) _trayMenu = null; };
 
         _trayMenu = menu;
@@ -236,8 +243,7 @@ public partial class App : Application
 
                 if (snippingWasOn && !wasBarePrtSc)
                     _tray.ShowBalloonTip(6000, "iPrtSc",
-                        "Print Screen now opens iPrtSc. Windows' Snipping Tool shortcut was turned off — " +
-                        "re-enable it any time under Settings ▸ Bluetooth & devices ▸ Keyboard, or just pick a different hotkey here.",
+                        Strings.Balloon_PrtScClaimed,
                         Forms.ToolTipIcon.Info);
             }
             else
@@ -250,7 +256,7 @@ public partial class App : Application
 
                 if (owed && wasBarePrtSc)
                     _tray.ShowBalloonTip(4000, "iPrtSc",
-                        "Print Screen released — Windows' Snipping Tool shortcut was restored.",
+                        Strings.Balloon_PrtScReleased,
                         Forms.ToolTipIcon.Info);
             }
         }
@@ -281,7 +287,7 @@ public partial class App : Application
                 _tray.Text = TrayTooltip();
 
                 _tray.ShowBalloonTip(4000, "iPrtSc",
-                    $"Version {result.LatestVersion} is available. Right-click the tray icon to download.",
+                    string.Format(Strings.Balloon_UpdateAvailable, result.LatestVersion),
                     Forms.ToolTipIcon.Info);
 
                 Logger.Log($"Update available: {result.LatestVersion} (current {UpdateChecker.Current}).");
@@ -315,6 +321,7 @@ public partial class App : Application
                 _settings = working;
                 SettingsStore.Save(_settings);
                 AutoStart.Apply(_settings.AutoStart);
+                Localization.Apply(_settings.UiLanguage);
             }
             FinalizePrintScreen(snippingWasOn, wasBarePrtSc, PrintScreenKey.IsBarePrintScreen(_settings));
         }
@@ -377,7 +384,7 @@ public partial class App : Application
             ClipboardService.CopyImage(cap.src);
             HistoryService.Archive(cap.src, _settings);
             cap.bmp.Dispose();
-            _tray.ShowBalloonTip(1500, "iPrtSc", "Screen copied to clipboard", Forms.ToolTipIcon.Info);
+            _tray.ShowBalloonTip(1500, "iPrtSc", Strings.Balloon_ScreenCopied, Forms.ToolTipIcon.Info);
         }
         catch (Exception ex)
         {
@@ -401,9 +408,9 @@ public partial class App : Application
 
             _overlay = new OverlayWindow(cap.bmp, cap.src, cap.bounds, _settings, quickCopy);
             _overlay.Saved += path =>
-                _tray.ShowBalloonTip(2500, "iPrtSc", $"Saved: {path}", Forms.ToolTipIcon.Info);
+                _tray.ShowBalloonTip(2500, "iPrtSc", string.Format(Strings.Balloon_Saved, path), Forms.ToolTipIcon.Info);
             _overlay.TextCopied += _ =>
-                _tray.ShowBalloonTip(2000, "iPrtSc", "Text copied to clipboard", Forms.ToolTipIcon.Info);
+                _tray.ShowBalloonTip(2000, "iPrtSc", Strings.Balloon_TextCopied, Forms.ToolTipIcon.Info);
             _overlay.Closed += (_, _) =>
             {
                 cap.bmp.Dispose();

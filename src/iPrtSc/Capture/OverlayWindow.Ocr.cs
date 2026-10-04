@@ -38,10 +38,10 @@ public partial class OverlayWindow
     {
         if (_sel.Width < 1 || _sel.Height < 1) return;
         if (!await EnsureOcrAsync()) return;            // hint already surfaced on failure
-        if (_ocrWords.Count == 0) { ShowHint("No text found in selection"); return; }
+        if (_ocrWords.Count == 0) { ShowHint(Strings.Overlay_Hint_NoText); return; }
 
         string text = OcrText(selectedOnly: _selWords.Count > 0);
-        if (string.IsNullOrWhiteSpace(text)) { ShowHint("No text found in selection"); return; }
+        if (string.IsNullOrWhiteSpace(text)) { ShowHint(Strings.Overlay_Hint_NoText); return; }
 
         ClipboardService.CopyText(text);
         TextCopied?.Invoke(text);
@@ -54,7 +54,7 @@ public partial class OverlayWindow
         SelectTool(Tool.OcrText, ToolOcr);
         if (!await EnsureOcrAsync()) { SelectTool(Tool.Select, ToolSelect); return; }
         // Success needs no instructions — the highlighted words speak for themselves.
-        if (_ocrWords.Count == 0) ShowHint("No text found in selection");
+        if (_ocrWords.Count == 0) ShowHint(Strings.Overlay_Hint_NoText);
     }
 
     /// <summary>
@@ -66,11 +66,11 @@ public partial class OverlayWindow
         if (_ocrDone && _ocrRect == _sel) return true;
         ClearOcr();
 
-        ShowHint("Recognizing text…");
+        ShowHint(Strings.Overlay_Hint_Recognizing);
         ShowBusyVeil();
         IReadOnlyList<OcrService.Word> words;
         try { words = await OcrService.RecognizeWordsAsync(CropPhoto()); }
-        catch (Exception ex) { Logger.Log("EnsureOcrAsync", ex); ShowHint("Text recognition failed"); return false; }
+        catch (Exception ex) { Logger.Log("EnsureOcrAsync", ex); ShowHint(Strings.Overlay_Hint_OcrFailed); return false; }
         finally { HideBusyVeil(); }
 
         _ocrDone = true;

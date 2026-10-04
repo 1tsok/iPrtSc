@@ -102,7 +102,7 @@ public partial class OverlayWindow
 
         var back = _beforePicker is Tool.Picker or Tool.OcrText ? Tool.Select : _beforePicker;
         SelectTool(back, ButtonFor(back));   // also hides the loupe
-        ShowHint($"{Hex(c)} copied", TimeSpan.FromMilliseconds(1100));
+        ShowHint(string.Format(Strings.Overlay_Hint_ColorCopied, Hex(c)), TimeSpan.FromMilliseconds(1100));
     }
 
     private void BuildColorSwatches()

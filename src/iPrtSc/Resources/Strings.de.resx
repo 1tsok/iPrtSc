@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Abbrechen</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Speichern</value>
+  </data>
+  <data name="Common_Copy" xml:space="preserve">
+    <value>Kopieren</value>
+  </data>
+  <data name="Common_Cut" xml:space="preserve">
+    <value>Ausschneiden</value>
+  </data>
+  <data name="Common_Paste" xml:space="preserve">
+    <value>Einfügen</value>
+  </data>
+  <data name="Common_SelectAll" xml:space="preserve">
+    <value>Alles auswählen</value>
+  </data>
+  <data name="Common_None" xml:space="preserve">
+    <value>Keine</value>
+  </data>
+  <data name="Common_KeyCtrl" xml:space="preserve">
+    <value>Strg</value>
+  </data>
+  <data name="Common_KeyEsc" xml:space="preserve">
+    <value>Esc</value>
+  </data>
+  <data name="Common_KeyEnter" xml:space="preserve">
+    <value>Enter</value>
+  </data>
+  <data name="Settings_WindowTitle" xml:space="preserve">
+    <value>iPrtSc-Einstellungen</value>
+  </data>
+  <data name="Settings_Header" xml:space="preserve">
+    <value>Einstellungen</value>
+  </data>
+  <data name="Settings_Nav_Hotkeys" xml:space="preserve">
+    <value>Tastenkürzel</value>
+  </data>
+  <data name="Settings_Nav_Saving" xml:space="preserve">
+    <value>Speichern</value>
+  </data>
+  <data name="Settings_Nav_Clipboard" xml:space="preserve">
+    <value>Zwischenablage</value>
+  </data>
+  <data name="Settings_Nav_History" xml:space="preserve">
+    <value>Verlauf</value>
+  </data>
+  <data name="Settings_Nav_Appearance" xml:space="preserve">
+    <value>Darstellung</value>
+  </data>
+  <data name="Settings_Nav_System" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="Settings_Nav_Language" xml:space="preserve">
+    <value>Sprache</value>
+  </data>
+  <data name="Settings_Hotkeys_Help" xml:space="preserve">
+    <value>Klicken Sie in ein Feld und drücken Sie die gewünschten Tasten. Mit der Rücktaste löschen Sie ein Kürzel.</value>
+  </data>
+  <data name="Settings_Hotkey_Capture" xml:space="preserve">
+    <value>Aufnahme</value>
+  </data>
+  <data name="Settings_Hotkey_QuickCopy" xml:space="preserve">
+    <value>Schnellkopie</value>
+  </data>
+  <data name="Settings_Hotkey_QuickCopyHelp" xml:space="preserve">
+    <value>Bereich auswählen und Maustaste loslassen - die Aufnahme landet direkt in der Zwischenablage, ohne Bearbeitungsleiste.</value>
+  </data>
+  <data name="Settings_Hotkey_FullScreen" xml:space="preserve">
+    <value>Ganzen Bildschirm kopieren</value>
+  </data>
+  <data name="Settings_Hotkey_FullScreenHelp" xml:space="preserve">
+    <value>Kopiert den Monitor unter dem Mauszeiger sofort in die Zwischenablage, ohne Auswahl.</value>
+  </data>
+  <data name="Settings_Hotkey_History" xml:space="preserve">
+    <value>Verlauf öffnen</value>
+  </data>
+  <data name="Settings_Hotkey_Listening" xml:space="preserve">
+    <value>Tastenkombination drücken…</value>
+  </data>
+  <data name="Settings_Hotkey_EnableHistoryFirst" xml:space="preserve">
+    <value>Zuerst den Verlauf aktivieren</value>
+  </data>
+  <data name="Settings_Saving_Ask" xml:space="preserve">
+    <value>Speicherort abfragen</value>
+  </data>
+  <data name="Settings_Saving_AskHelp" xml:space="preserve">
+    <value>Bei jedem Speichern einen Dialog anzeigen</value>
+  </data>
+  <data name="Settings_Saving_Folder" xml:space="preserve">
+    <value>Standardordner</value>
+  </data>
+  <data name="Settings_Saving_FolderDefaultSuffix" xml:space="preserve">
+    <value>(Standard)</value>
+  </data>
+  <data name="Settings_Saving_FolderDialogTitle" xml:space="preserve">
+    <value>Standardordner auswählen</value>
+  </data>
+  <data name="Settings_Saving_Format" xml:space="preserve">
+    <value>Standardformat</value>
+  </data>
+  <data name="Settings_Clipboard_CopyOnSave" xml:space="preserve">
+    <value>Beim Speichern in die Zwischenablage kopieren</value>
+  </data>
+  <data name="Settings_Clipboard_CopyOnSaveHelp" xml:space="preserve">
+    <value>Nach dem Speichern in eine Datei eine Kopie in der Zwischenablage behalten</value>
+  </data>
+  <data name="Settings_History_Keep" xml:space="preserve">
+    <value>Letzte Screenshots behalten</value>
+  </data>
+  <data name="Settings_History_KeepHelp" xml:space="preserve">
+    <value>Jede Aufnahme wird automatisch archiviert; ältere Dateien werden gelöscht, die letzten erscheinen im Verlaufsmenü im Infobereich.</value>
+  </data>
+  <data name="Settings_History_AutoDelete" xml:space="preserve">
+    <value>Automatisch löschen nach</value>
+  </data>
+  <data name="Settings_History_Off" xml:space="preserve">
+    <value>Aus</value>
+  </data>
+  <data name="Settings_History_1Day" xml:space="preserve">
+    <value>1 Tag</value>
+  </data>
+  <data name="Settings_History_3Days" xml:space="preserve">
+    <value>3 Tage</value>
+  </data>
+  <data name="Settings_History_7Days" xml:space="preserve">
+    <value>7 Tage</value>
+  </data>
+  <data name="Settings_Appearance_Accent" xml:space="preserve">
+    <value>Akzentfarbe</value>
+  </data>
+  <data name="Settings_System_AutoStart" xml:space="preserve">
+    <value>Mit Windows starten</value>
+  </data>
+  <data name="Settings_System_AutoStartHelp" xml:space="preserve">
+    <value>iPrtSc beim Anmelden automatisch starten</value>
+  </data>
+  <data name="Settings_Language_Label" xml:space="preserve">
+    <value>Sprache der Oberfläche</value>
+  </data>
+  <data name="Settings_Language_Help" xml:space="preserve">
+    <value>Wird nach dem Klicken auf Speichern übernommen.</value>
+  </data>
+  <data name="Settings_Language_Auto" xml:space="preserve">
+    <value>Automatisch (System)</value>
+  </data>
+  <data name="Overlay_Tool_Select" xml:space="preserve">
+    <value>Bereich auswählen (C)</value>
+  </data>
+  <data name="Overlay_Tool_Move" xml:space="preserve">
+    <value>Objekte verschieben (V)</value>
+  </data>
+  <data name="Overlay_Tool_Pen" xml:space="preserve">
+    <value>Stift (P)</value>
+  </data>
+  <data name="Overlay_Tool_Marker" xml:space="preserve">
+    <value>Textmarker (M)</value>
+  </data>
+  <data name="Overlay_Tool_Shapes" xml:space="preserve">
+    <value>Formen (A / L / R / E)</value>
+  </data>
+  <data name="Overlay_Tool_Text" xml:space="preserve">
+    <value>Text (T)</value>
+  </data>
+  <data name="Overlay_Tool_Counter" xml:space="preserve">
+    <value>Nummerierter Schritt (N)</value>
+  </data>
+  <data name="Overlay_Tool_Stamps" xml:space="preserve">
+    <value>Stempel (S)</value>
+  </data>
+  <data name="Overlay_Tool_Pixelate" xml:space="preserve">
+    <value>Bereich verpixeln (B)</value>
+  </data>
+  <data name="Overlay_Tool_Ocr" xml:space="preserve">
+    <value>Text erfassen (G) - über Wörter ziehen, Strg+C zum Kopieren</value>
+  </data>
+  <data name="Overlay_Tool_Picker" xml:space="preserve">
+    <value>Farbe aufnehmen (I) - Klick liest den Pixel und kopiert den Hex-Wert</value>
+  </data>
+  <data name="Overlay_Tool_Color" xml:space="preserve">
+    <value>Farbe</value>
+  </data>
+  <data name="Overlay_Tool_Undo" xml:space="preserve">
+    <value>Rückgängig (Strg+Z)</value>
+  </data>
+  <data name="Overlay_Tool_Redo" xml:space="preserve">
+    <value>Wiederholen (Strg+Y)</value>
+  </data>
+  <data name="Overlay_Tool_Copy" xml:space="preserve">
+    <value>Kopieren (Enter)</value>
+  </data>
+  <data name="Overlay_Tool_Save" xml:space="preserve">
+    <value>Speichern (Strg+S)</value>
+  </data>
+  <data name="Overlay_Tool_Cancel" xml:space="preserve">
+    <value>Abbrechen (Esc)</value>
+  </data>
+  <data name="Overlay_Colors_Header" xml:space="preserve">
+    <value>Farben</value>
+  </data>
+  <data name="Overlay_Shape_Arrow" xml:space="preserve">
+    <value>Pfeil (A)</value>
+  </data>
+  <data name="Overlay_Shape_Line" xml:space="preserve">
+    <value>Linie (L)</value>
+  </data>
+  <data name="Overlay_Shape_Rect" xml:space="preserve">
+    <value>Rechteck (R, Umschalt = Quadrat)</value>
+  </data>
+  <data name="Overlay_Shape_Ellipse" xml:space="preserve">
+    <value>Ellipse (E, Umschalt = Kreis)</value>
+  </data>
+  <data name="Overlay_Stamps_Header" xml:space="preserve">
+    <value>Stempel</value>
+  </data>
+  <data name="Overlay_Stamps_InkLight" xml:space="preserve">
+    <value>Tinte für helle Hintergründe</value>
+  </data>
+  <data name="Overlay_Stamps_InkDark" xml:space="preserve">
+    <value>Tinte für dunkle Hintergründe</value>
+  </data>
+  <data name="Overlay_Stamps_InkAuto" xml:space="preserve">
+    <value>Auto - die Farbe passt sich dem Hintergrund unter dem Stempel an</value>
+  </data>
+  <data name="Overlay_Copied" xml:space="preserve">
+    <value>Kopiert</value>
+  </data>
+  <data name="Overlay_Hint_NoText" xml:space="preserve">
+    <value>Im Auswahlbereich wurde kein Text gefunden</value>
+  </data>
+  <data name="Overlay_Hint_Recognizing" xml:space="preserve">
+    <value>Text wird erkannt…</value>
+  </data>
+  <data name="Overlay_Hint_OcrFailed" xml:space="preserve">
+    <value>Texterkennung fehlgeschlagen</value>
+  </data>
+  <data name="Overlay_Hint_ColorCopied" xml:space="preserve">
+    <value>{0} kopiert</value>
+  </data>
+  <data name="Overlay_Menu_CopyText" xml:space="preserve">
+    <value>Text kopieren</value>
+  </data>
+  <data name="Overlay_Menu_SelectFullScreen" xml:space="preserve">
+    <value>Ganzen Bildschirm auswählen</value>
+  </data>
+  <data name="Overlay_Menu_ClearSelection" xml:space="preserve">
+    <value>Auswahl aufheben</value>
+  </data>
+  <data name="Overlay_SaveDialog_Title" xml:space="preserve">
+    <value>Screenshot speichern</value>
+  </data>
+  <data name="Overlay_SaveDialog_Png" xml:space="preserve">
+    <value>PNG-Bild</value>
+  </data>
+  <data name="Overlay_SaveDialog_Jpeg" xml:space="preserve">
+    <value>JPEG-Bild</value>
+  </data>
+  <data name="Tray_Menu_Capture" xml:space="preserve">
+    <value>Aufnehmen</value>
+  </data>
+  <data name="Tray_Menu_QuickCopy" xml:space="preserve">
+    <value>Schnellkopie</value>
+  </data>
+  <data name="Tray_Menu_History" xml:space="preserve">
+    <value>Verlauf…</value>
+  </data>
+  <data name="Tray_Menu_Settings" xml:space="preserve">
+    <value>Einstellungen…</value>
+  </data>
+  <data name="Tray_Menu_About" xml:space="preserve">
+    <value>Info</value>
+  </data>
+  <data name="Tray_Menu_Exit" xml:space="preserve">
+    <value>Beenden</value>
+  </data>
+  <data name="Tray_Menu_Update" xml:space="preserve">
+    <value>Update v{0} herunterladen</value>
+  </data>
+  <data name="Tray_Tooltip" xml:space="preserve">
+    <value>iPrtSc v{0}</value>
+  </data>
+  <data name="Tray_TooltipUpdate" xml:space="preserve">
+    <value>iPrtSc v{0} - Update {1} verfügbar</value>
+  </data>
+  <data name="Balloon_HotkeyFailed" xml:space="preserve">
+    <value>Das Tastenkürzel „{0}“ konnte nicht registriert werden - möglicherweise wird es von einer anderen App verwendet.</value>
+  </data>
+  <data name="Balloon_PrtScClaimed" xml:space="preserve">
+    <value>Die Taste „Druck“ öffnet jetzt iPrtSc. Das Windows-Tastenkürzel für das Snipping Tool wurde deaktiviert - Sie können es jederzeit unter Einstellungen ▸ Bluetooth &amp; Geräte ▸ Tastatur wieder aktivieren oder hier ein anderes Tastenkürzel wählen.</value>
+  </data>
+  <data name="Balloon_PrtScReleased" xml:space="preserve">
+    <value>Die Taste „Druck“ ist wieder frei - das Windows-Tastenkürzel für das Snipping Tool wurde wiederhergestellt.</value>
+  </data>
+  <data name="Balloon_UpdateAvailable" xml:space="preserve">
+    <value>Version {0} ist verfügbar. Zum Herunterladen mit der rechten Maustaste auf das Symbol im Infobereich klicken.</value>
+  </data>
+  <data name="Balloon_ScreenCopied" xml:space="preserve">
+    <value>Bildschirm in die Zwischenablage kopiert</value>
+  </data>
+  <data name="Balloon_Saved" xml:space="preserve">
+    <value>Gespeichert: {0}</value>
+  </data>
+  <data name="Balloon_TextCopied" xml:space="preserve">
+    <value>Text in die Zwischenablage kopiert</value>
+  </data>
+  <data name="History_Title" xml:space="preserve">
+    <value>Letzte Screenshots</value>
+  </data>
+  <data name="History_Pin" xml:space="preserve">
+    <value>Dieses Fenster geöffnet lassen</value>
+  </data>
+  <data name="History_Empty" xml:space="preserve">
+    <value>Noch keine Screenshots</value>
+  </data>
+  <data name="History_ClickHint" xml:space="preserve">
+    <value>Linksklick: kopieren  ·  Rechtsklick: öffnen</value>
+  </data>
+  <data name="History_OpenFolder" xml:space="preserve">
+    <value>Verlaufsordner öffnen</value>
+  </data>
+  <data name="History_Flash_Copied" xml:space="preserve">
+    <value>Kopiert</value>
+  </data>
+  <data name="History_Flash_Opened" xml:space="preserve">
+    <value>Geöffnet</value>
+  </data>
+  <data name="History_Flash_CopyFailed" xml:space="preserve">
+    <value>Kopierfehler</value>
+  </data>
+  <data name="History_Flash_OpenFailed" xml:space="preserve">
+    <value>Fehler beim Öffnen</value>
+  </data>
+  <data name="About_WindowTitle" xml:space="preserve">
+    <value>Über iPrtSc</value>
+  </data>
+  <data name="About_Version" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="About_Tagline" xml:space="preserve">
+    <value>Screenshots, die mehr können als Screenshots.</value>
+  </data>
+  <data name="About_UpdateBanner" xml:space="preserve">
+    <value>Update verfügbar: v{0} - Herunterladen</value>
+  </data>
+  <data name="About_Contact" xml:space="preserve">
+    <value>Kontakt:</value>
+  </data>
+  <data name="About_GitHub" xml:space="preserve">
+    <value>iPrtSc auf GitHub</value>
+  </data>
+  <data name="About_Coffee" xml:space="preserve">
+    <value>Spendiere mir einen Kaffee ☕</value>
+  </data>
+</root>

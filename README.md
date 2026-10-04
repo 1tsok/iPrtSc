@@ -91,6 +91,7 @@ Download the latest `iPrtSc-Setup-x.y.z.exe` from [Releases](https://github.com/
 ### Interface
 - **Runs in the tray** with optional autostart at sign-in.
 - **Dark, Fluent-style UI** throughout, with a configurable accent colour.
+- **Six interface languages** - English, Ukrainian, Polish, German, Spanish and French. Follows Windows by default; change it in Settings. Translations were written without native review, so corrections are welcome via issues or pull requests.
 - **Update notifications** in the tray when a new version is available.
 
 </details>

@@ -79,7 +79,8 @@ public partial class SettingsWindow : Window
             ["Clipboard"] = PanelClipboard,
             ["History"] = PanelHistory,
             ["Appearance"] = PanelAppearance,
-            ["System"] = PanelSystem
+            ["System"] = PanelSystem,
+            ["Language"] = PanelLanguage
         };
         NavList.SelectedIndex = 0;
 
@@ -92,6 +93,7 @@ public partial class SettingsWindow : Window
         }).IsChecked = true;
 
         BuildAccentSwatches();
+        BuildLanguageList(working.UiLanguage);
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -111,7 +113,6 @@ public partial class SettingsWindow : Window
     }
 
     // ---- Hotkey capture (shared by the Capture and History fields) ----
-    private const string HistoryDisabledText = "Enable history first";
 
     /// <summary>Shows a binding in a field, dimming the text when there is none ("None").</summary>
     private void ShowHotkey(Button field, string key, string mods)
@@ -122,7 +123,7 @@ public partial class SettingsWindow : Window
 
     private void EnterListening(Button field)
     {
-        field.Content = "Press a key combination…";
+        field.Content = Strings.Settings_Hotkey_Listening;
         field.Foreground = (Brush)FindResource("Fg3"); // placeholder reads as muted
     }
 
@@ -155,7 +156,7 @@ public partial class SettingsWindow : Window
     }
 
     private static string DisplayOf(string key, string mods) =>
-        string.IsNullOrWhiteSpace(key) ? "None"
+        string.IsNullOrWhiteSpace(key) ? Strings.Common_None
         : (!string.IsNullOrWhiteSpace(mods) && !mods.Equals("None", StringComparison.OrdinalIgnoreCase))
             ? mods.Replace(",", " + ") + " + " + key
             : key;
@@ -221,7 +222,7 @@ public partial class SettingsWindow : Window
         }
         else
         {
-            HistoryHotkeyButton.Content = HistoryDisabledText;
+            HistoryHotkeyButton.Content = Strings.Settings_Hotkey_EnableHistoryFirst;
             HistoryHotkeyButton.Foreground = (Brush)FindResource("Fg3");
         }
     }
@@ -316,14 +317,14 @@ public partial class SettingsWindow : Window
     // ---- Folder ----
     private string FolderDisplay() =>
         string.IsNullOrWhiteSpace(_folder)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "iPrtSc") + "  (default)"
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "iPrtSc") + "  " + Strings.Settings_Saving_FolderDefaultSuffix
             : _folder!;
 
     private void OnBrowseFolder(object sender, RoutedEventArgs e)
     {
         var dlg = new Microsoft.Win32.OpenFolderDialog
         {
-            Title = "Choose default folder",
+            Title = Strings.Settings_Saving_FolderDialogTitle,
             InitialDirectory = string.IsNullOrWhiteSpace(_folder)
                 ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "iPrtSc")
                 : _folder!
@@ -333,6 +334,20 @@ public partial class SettingsWindow : Window
             _folder = dlg.FolderName;
             FolderButton.Content = FolderDisplay();
         }
+    }
+
+    // ---- Language ----
+    /// <summary>Fills the picker: "Auto" first, then each language under its native name.</summary>
+    private void BuildLanguageList(string? current)
+    {
+        LanguageBox.Items.Add(new ComboBoxItem { Content = Strings.Settings_Language_Auto, Tag = "" });
+        foreach (var (code, name) in Localization.Languages)
+            LanguageBox.Items.Add(new ComboBoxItem { Content = name, Tag = code });
+
+        string selected = current ?? "";
+        LanguageBox.SelectedItem = LanguageBox.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(i => ((string)i.Tag).Equals(selected, StringComparison.OrdinalIgnoreCase))
+            ?? LanguageBox.Items[0];
     }
 
     // ---- Accent ----
@@ -415,6 +430,7 @@ public partial class SettingsWindow : Window
         _working.SaveFormat = FmtJpg.IsChecked == true ? "Jpeg" : "Png";
         _working.CopyToClipboardAlways = CopyOnSaveSwitch.IsChecked == true;
         _working.AutoStart = AutoStartSwitch.IsChecked == true;
+        _working.UiLanguage = (LanguageBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
         _working.AccentColor = _accent;
         _working.HistoryRetentionDays =
             Hist7.IsChecked == true ? 7 :

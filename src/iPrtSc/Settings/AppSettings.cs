@@ -30,6 +30,10 @@ public class AppSettings
     /// <summary>Modifiers for the Copy full screen hotkey; same format as <see cref="HotkeyModifiers"/>.</summary>
     public string FullScreenHotkeyModifiers { get; set; } = "None";
 
+    /// <summary>UI language: "" = follow Windows, otherwise a culture code ("en", "uk", ...).
+    /// null = never chosen; the first run seeds it from the installer language.</summary>
+    public string? UiLanguage { get; set; }
+
     /// <summary>"Png" or "Jpeg".</summary>
     public string SaveFormat { get; set; } = "Png";
 
@@ -97,6 +101,7 @@ public class AppSettings
         QuickCopyHotkeyModifiers = QuickCopyHotkeyModifiers,
         FullScreenHotkeyKey = FullScreenHotkeyKey,
         FullScreenHotkeyModifiers = FullScreenHotkeyModifiers,
+        UiLanguage = UiLanguage,
         SaveFormat = SaveFormat,
         SaveFolder = SaveFolder,
         CopyToClipboardAlways = CopyToClipboardAlways,

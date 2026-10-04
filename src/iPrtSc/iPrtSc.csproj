@@ -14,10 +14,19 @@
     <LangVersion>latest</LangVersion>
     <!-- Pixel loops in ScreenCapture write through raw LockBits pointers. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Version>1.1.10</Version>
+    <Version>1.2.0</Version>
+    <!-- Strings.resx is the English source of truth; a missing key in any other locale falls back to it. -->
+    <NeutralResourcesLanguage>en</NeutralResourcesLanguage>
+    <!-- Ship satellite resources only for the UI languages (also trims those of NuGet packages). -->
+    <SatelliteResourceLanguages>en;uk;pl;de;es;fr</SatelliteResourceLanguages>
     <!-- WPF takes DPI awareness from app.manifest; silence the WinForms-only analyzer. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Strings.* (UI text) is used everywhere; see Resources\Strings.resx. -->
+    <Using Include="iPrtSc.Resources" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Embedded in the exe via ApplicationIcon; also exposed as a Resource so windows can reference it by pack URI. -->
@@ -46,6 +55,11 @@
        East Slavic model supersedes (it reads Latin too) — keep it out of the installer. -->
   <Target Name="PruneUnusedOcrModels" AfterTargets="CopyModelsPublish">
     <Delete Files="$(PublishDir)models\v5\latin_PP-OCRv5_rec_mobile_infer.onnx;$(PublishDir)models\v5\ppocrv5_latin_dict.txt" />
+  </Target>
+
+  <!-- Keep new XAML from reintroducing hardcoded English; see tools\check-no-literals.ps1. -->
+  <Target Name="CheckNoLiterals" BeforeTargets="BeforeBuild" Condition="Exists('$(MSBuildThisFileDirectory)..\..	ools\check-no-literals.ps1')">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..	ools\check-no-literals.ps1&quot;" />
   </Target>
 
 </Project>

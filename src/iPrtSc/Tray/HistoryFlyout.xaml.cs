@@ -108,7 +108,10 @@ public partial class HistoryFlyout : Window
             FontSize = 11,
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 5, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 96                                      // a longer translation wraps inside the tile
         };
         var layer = new Border
         {
@@ -210,10 +213,10 @@ public partial class HistoryFlyout : Window
         {
             Logger.Log("HistoryFlyout.Open", ex);
             _holdOpen = false;
-            flash.Play("Open failed", ErrorIcon, ErrorColor);   // stay open so the message is readable
+            flash.Play(Strings.History_Flash_OpenFailed, ErrorIcon, ErrorColor);   // stay open so the message is readable
             return;
         }
-        flash.Play("Opened", OpenIcon, FlashColor);
+        flash.Play(Strings.History_Flash_Opened, OpenIcon, FlashColor);
         DismissAfterFlash();
     }
 
@@ -234,10 +237,10 @@ public partial class HistoryFlyout : Window
         {
             Logger.Log("HistoryFlyout.Copy", ex);
             _holdOpen = false;
-            flash.Play("Copy failed", ErrorIcon, ErrorColor);   // e.g. the file was deleted meanwhile
+            flash.Play(Strings.History_Flash_CopyFailed, ErrorIcon, ErrorColor);   // e.g. the file was deleted meanwhile
             return;
         }
-        flash.Play("Copied", CheckIcon, FlashColor);
+        flash.Play(Strings.History_Flash_Copied, CheckIcon, FlashColor);
         DismissAfterFlash();
     }
 
