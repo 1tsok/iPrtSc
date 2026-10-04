@@ -41,7 +41,7 @@
 
 ## Install
 
-Download the latest `iPrtSc-Setup-x.y.z.exe` from [Releases](https://github.com/1tsok/iPrtSc/releases) and run it. It installs per-user (no admin required) and bundles the .NET runtime - nothing else to install.
+Download the latest `iPrtSc-Setup-x.y.z.exe` from [Releases](https://github.com/1tsok/iPrtSc/releases) and run it. It installs per-machine (one UAC prompt, so it shows up in Windows Settings > Installed apps) and bundles the .NET runtime - nothing else to install.
 
 ---
 
@@ -180,6 +180,10 @@ To produce the installer (requires Inno Setup 6):
 ## Requirements
 
 Windows 11. The installer bundles the .NET runtime, so no separate install is needed.
+
+## Translations
+
+UI text lives in `src/iPrtSc/Resources/`: `Strings.resx` is the English source, and each `Strings.<lang>.resx` is a translation. To fix a string, edit the matching file and open a pull request. To add a language, copy `Strings.resx` to `Strings.<code>.resx`, translate it, and add the language to `Localization.Languages` and the installer's `[Languages]`. `tools/check-locales.ps1` lists missing keys; untranslated ones fall back to English.
 
 ## License
 
